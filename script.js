@@ -370,7 +370,7 @@ function hideLoading() {
     if (loadingOverlay) loadingOverlay.classList.remove("active");
 }
 
-function showStory() {
+ffunction showStory() {
     if (!storyOverlay) return;
     storyOverlay.classList.add("active");
     document.body.style.overflow = "hidden";
@@ -381,26 +381,18 @@ function showStory() {
         storyVideo.muted = true;
         storyVideo.playsInline = true;
         storyVideo.setAttribute('playsinline', '');
+        storyVideo.setAttribute('webkit-playsinline', '');
         
         positionSkipButton();
         
-        // Для мобилок - пробуем воспроизвести
-        var playPromise = storyVideo.play();
-        if (playPromise !== undefined) {
-            playPromise.then(function() {
-                // Автовоспроизведение сработало
-                console.log('✅ Видео играет');
-            }).catch(function(error) {
-                console.warn('Автовоспроизведение заблокировано, ждём касания');
-                // На мобилках нужно касание пользователя
-                document.addEventListener('touchstart', function playOnTouch() {
-                    storyVideo.play().catch(function(e) {
-                        console.warn('Всё равно не играет:', e);
-                    });
-                    document.removeEventListener('touchstart', playOnTouch);
-                }, { once: true });
-            });
-        }
+        // Пытаемся запустить
+        storyVideo.play().catch(function() {
+            // Если не запустилось — ждём клик по кружку
+            storyOverlay.addEventListener('click', function playOnClick() {
+                storyVideo.play().catch(function() {});
+                storyOverlay.removeEventListener('click', playOnClick);
+            }, { once: true });
+        });
     }
     
     if (hasEverSeenStory && skipBtn) {
