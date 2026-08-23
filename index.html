@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DBMUSIC</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="favicon.png">
+</head>
+<body>
+    <div class="app">
+        <div class="player">
+            <div class="player-content" id="playerContent">
+                <div class="cover-section">
+                    <div class="cover-background" id="coverBackground"></div>
+                    <div class="cover-wrapper">
+                        <img src="cover.png" alt="Cover" class="cover" id="coverImage">
+                        <div class="cover-controls">
+                            <div class="cover-controls-middle">
+                                <button class="cover-btn-play" id="playButton">
+                                    <img src="play.png" alt="Play" id="playIcon">
+                                </button>
+                            </div>
+                            <div class="cover-controls-bottom">
+                                <button class="cover-btn-bottom" id="lyricsToggleBtn" title="Текст песни">
+                                    <img src="lyrics.png" alt="Lyrics" id="lyricsIcon">
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="track-info">
+                        <h1>ЕБАННУТАЯ</h1>
+                        <p>chamxmile, Vzon</p>
+                    </div>
+                    <div class="progress-container">
+                        <input type="range" id="progress" value="0" min="0" max="100" step="0.1">
+                        <div class="time">
+                            <span id="currentTime">0:00</span>
+                            <span id="duration">0:00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="lyrics-section" id="lyricsSection">
+                    <div class="lyrics-content" id="lyricsContent"></div>
+                </div>
+            </div>
+            <audio id="audio" src="track.mp3" preload="metadata"></audio>
+
+            <div class="comments">
+                <div class="section-header" style="grid-column: 1 / -1;">
+                    <h2>Комментарии</h2>
+                    <span id="commentsCount">0</span>
+                </div>
+                <div class="comment-form">
+                    <input type="text" id="nameInput" placeholder="Ваше имя" maxlength="50">
+                    <textarea id="commentInput" placeholder="Написать комментарий..." rows="3" maxlength="500"></textarea>
+                    <button id="commentButton">Отправить комментарий</button>
+                    
+                    <!-- БЛОК ОЦЕНКИ ТРЕКА -->
+                    <div class="rating-block">
+                        <div class="rating-header">
+                            <span>Оцени трек</span>
+                            <span class="rating-value" id="ratingValue">0</span>
+                        </div>
+                        <input type="range" id="ratingSlider" min="0" max="100" value="0" step="1">
+                        <div class="rating-labels">
+                            <span>0</span>
+                            <span>50</span>
+                            <span>100</span>
+                        </div>
+                        <!-- КНОПКА ДЛЯ ОТПРАВКИ ОЦЕНКИ -->
+                        <button id="sendRatingButton" class="send-rating-btn">Отправить оценку</button>
+                    </div>
+                </div>
+                <div class="comments-list" id="commentsList">
+                    <div class="empty-comments">Пока комментариев нет</div>
+                </div>
+            </div>
+
+            <!-- Модальное окно с картинкой -->
+            <div class="modal-overlay" id="modalOverlay">
+                <div class="modal-content">
+                    <button class="modal-close" id="modalClose">✕</button>
+                    <img src="love.png" alt="Людское" class="modal-image" id="modalImage">
+                    <audio id="taxiSound" src="taxi.mp3" loop preload="auto"></audio>
+                </div>
+            </div>
+
+            <!-- Блок загрузки -->
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loading-content">
+                    <img src="loading.gif" alt="Загрузка" class="loading-gif">
+                </div>
+            </div>
+
+            <!-- Блок с кружком -->
+            <div class="story-overlay" id="storyOverlay">
+                <div class="story-content">
+                    <video id="storyVideo" src="story.mp4" autoplay muted playsinline></video>
+                </div>
+            </div>
+
+            <!-- Кнопка СКИПНУТЬ -->
+            <button class="skip-btn" id="skipBtn">СКИПНУТЬ</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

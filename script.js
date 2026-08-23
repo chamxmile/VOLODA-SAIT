@@ -1,23 +1,67 @@
-const audio = document.getElementById("audio");
-const playButton = document.getElementById("playButton");
-const progress = document.getElementById("progress");
-const currentTimeElement = document.getElementById("currentTime");
-const durationElement = document.getElementById("duration");
-const commentButton = document.getElementById("commentButton");
-const nameInput = document.getElementById("nameInput");
-const commentInput = document.getElementById("commentInput");
-const commentsList = document.getElementById("commentsList");
-const recordButton = document.getElementById("recordButton");
-const recordText = document.getElementById("recordText");
-const recordTimer = document.getElementById("recordTimer");
-const lyricsToggleBtn = document.getElementById("lyricsToggleBtn");
-const lyricsSection = document.getElementById("lyricsSection");
-const lyricsContent = document.getElementById("lyricsContent");
-const playerContent = document.getElementById("playerContent");
+// Безопасное получение элементов
+function $(id) {
+    const el = document.getElementById(id);
+    if (!el) console.warn(`Элемент #${id} не найден`);
+    return el;
+}
 
+
+const audio = $("audio");
+const playButton = $("playButton");
+const progress = $("progress");
+const currentTimeElement = $("currentTime");
+const durationElement = $("duration");
+const commentButton = $("commentButton");
+const nameInput = $("nameInput");
+const commentInput = $("commentInput");
+const commentsList = $("commentsList");
+const commentsCount = $("commentsCount");
+const lyricsToggleBtn = $("lyricsToggleBtn");
+const lyricsSection = $("lyricsSection");
+const lyricsContent = $("lyricsContent");
+const playerContent = $("playerContent");
+const coverImage = $("coverImage");
+const coverBackground = $("coverBackground");
+const ratingSlider = $("ratingSlider");
+const ratingValue = $("ratingValue");
+const modalOverlay = $("modalOverlay");
+const modalClose = $("modalClose");
+const modalImage = $("modalImage");
+const taxiSound = $("taxiSound");
+
+// Элементы для кружка
+const loadingOverlay = $("loadingOverlay");
+const storyOverlay = $("storyOverlay");
+const storyVideo = $("storyVideo");
+const skipBtn = $("skipBtn");
+const sendRatingButton = $("sendRatingButton");
+
+const SUPABASE_URL = 'https://sqjtrcqumszdrkyzlmsy.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxanRyY3F1bXN6ZHJreXpsbXN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0ODU2MTIsImV4cCI6MjEwMzA2MTYxMn0.0P7GL1JXfzf3dIsSPj6HnKNzg8ssEN9MRk2dhLSmr2Q';
+
+// Состояния кружка
+let isFirstPlay = true;
+let storyWasShownThisSession = false;
+let isStoryPlaying = false;
+let storySequenceId = 0;
+let storyTimeouts = [];
+let storyStarted = false;
+
+// Проверяем, показывали ли кружок когда-либо (хранится в localStorage)
+let hasEverSeenStory = localStorage.getItem("hasEverSeenStory") === "true";
+
+// Переменная для хранения текущей оценки при отправке комментария
+let currentRating = 0;
+
+// Функция очистки всех таймеров кружка
+function clearStoryTimers() {
+    storyTimeouts.forEach(timer => clearTimeout(timer));
+    storyTimeouts = [];
+}
 
 function setPlayIcon(isPlaying) {
-    const playIcon = document.getElementById("playIcon");
+    const playIcon = $("playIcon");
+    if (!playIcon) return;
     if (isPlaying) {
         playIcon.src = "pause.png";
         playIcon.alt = "Pause";
@@ -29,36 +73,41 @@ function setPlayIcon(isPlaying) {
 
 // Текст песни
 const lyrics = [
-    { time: 0, text: " Музыка начинается..." },
-    { time: 2.5, text: "Это хуярот твой" },
-    { time: 5.8, text: "На всё хуёвое настроение заебись бит" },
-    { time: 9.2, text: "Да без базара пусть подкатывает" },
-    { time: 12.1, text: "Разберёмся чё да как" },
-    { time: 15.5, text: "Ты чё ебанутая?" },
-    { time: 18.3, text: "Слышь на вот ты че ебанутая" },
-    { time: 21.7, text: "Твой цвет опущен шея загнута" },
-    { time: 24.9, text: "Ебут ала ты че выже обутая" },
-    { time: 28.2, text: "А нет если не будет твоего си" },
-    { time: 31.5, text: "То есть не будет твоего завтра" },
-    { time: 34.8, text: "Его не будет сука его не будет" },
-    { time: 38.1, text: "Володя обжёг ноги но если надо разбить тебе ебало" },
-    { time: 42.5, text: "Он пойдёт на свои бои" },
-    { time: 45.8, text: "Насрать на девчонки он не думает" },
-    { time: 48.2, text: "Сразу берёт двоих" },
-    { time: 51.5, text: "Если бы у тебя было сука она б тебе не дала" },
-    { time: 55.3, text: "Сука такие дела и нет предела" },
-    { time: 59.1, text: "Им всем мужчинам нужно твоё тело" },
-    { time: 63.4, text: "Тебя не должно ебать то есть не должно быть до этого дела" },
-    { time: 68.2, text: "Не должно быть" },
-    { time: 72.5, text: "Про Вову нечего сказать он заебатый парень" },
-    { time: 76.8, text: "Как в игре может повернуться и ты будешь отправлен в ад" },
-    { time: 80.3, text: "Даже с одной ногой ему будет каждый рад" },
-    { time: 84.1, text: "Только ты уёбище будешь каждый раз" },
-    { time: 88.5, text: "Ну пиздец неронду сразу получишь поебу" },
-    { time: 92.2, text: "Только я не получу ведь Володя я тебя люблю" },
-    { time: 96.5, text: "И только я имею право говорить про Вову как хочу" },
-    { time: 100.3, text: "Я я я как хочу" },
-    { time: 104, text: "🎵 Трек подходит к концу..." }
+    { time: 0, text: "Это хуйня родной" },
+    { time: 1.2, text: "Да кто хуйня" },
+    { time: 2.2, text: "Мои парни приедут тебя отпиздят блять" },
+    { time: 4.0, text: "Да без базара пусть подкатывают" },
+    { time: 6.1, text: "Разберёмся (morningmarch audio exclusive) чё да как" },
+    { time: 9.1, text: "Да ты вообще ебаннутый блять" },
+    { time: 10, text: "Ты чё ебанутая?" },
+    { time: 13.3, text: "Пиздишь на Вову ты че ебаннутая?" },
+    { time: 14.9, text: "Твой взгляд опущен шея загнутая" },
+    { time: 16.5, text: "Ебу дала ты че в лыжи обутая а" },
+    { time: 18.7, text: "Не DayZ не будет твоего Z, то есть не будет твоего завтра" },
+    { time: 22, text: "(его не будет, сука, его не будет)" },
+    { time: 26, text: "Володя обжёг ноги но если надо разбить тебе ебало" },
+    { time: 30, text: "он пойдёт на своих двоих" },
+    { time: 31.7, text: "Если две девченки он не думает" },
+    { time: 33.7, text: "сразу берёт двоих" },
+    { time: 35, text: "И если бы сука у тебя была сука" },
+    { time: 37.3, text: "она бы тебе не дала" },
+    { time: 38.9, text: "Сука такие дела, им не придела," },
+    { time: 42, text: "Леша при делах, ему ща нужно твое тело" },
+    { time: 45, text: "Тебя не должно ебать то есть не должно быть до этого дела" },
+    { time: 49, text: "(не должно быть)" },
+    { time: 53, text: "Про Вову нечего сказать он заебатый парень" },
+    { time: 56.3, text: "Он как в игре может повернуться и ты будешь отправлен в ад" },
+    { time: 60, text: "Даже с одной ногой ему будет каждый рад" },
+    { time: 63, text: "только ты уёбище будешь как пират" },
+    { time: 66.5, text: "Будешь пиздеть неровно, то сразу получишь по еблю" },
+    { time: 69.5, text: "Только я не получу ведь Володя я тебя люблю" },
+    { time: 73.5, text: "И только я имею право говорить про Вову как хочу" },
+    { time: 77, text: "Я я я как хочу" },
+    { time: 80, text: "Пиздишь на Вову ты че ебаннутая?" },
+    { time: 81.6, text: "Твой взгляд опущен шея загнутая" },
+    { time: 83.2, text: "Ебу дала ты че в лыжи обутая а" },
+    { time: 85.3, text: "Не DayZ не будет твоего Z, то есть не будет твоего завтра" },
+    { time: 89, text: "(его не будет, сука, его не будет)" },
 ];
 
 let currentLyricIndex = -1;
@@ -66,9 +115,7 @@ let isLyricsOpen = false;
 
 // Форматирование времени
 function formatTime(seconds) {
-    if (!Number.isFinite(seconds)) {
-        return "0:00";
-    }
+    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
     const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${minutes}:${String(secs).padStart(2, "0")}`;
@@ -78,53 +125,55 @@ function formatTime(seconds) {
 function extractDominantColor(imageUrl) {
     return new Promise((resolve) => {
         const img = new Image();
-        img.crossOrigin = "Anonymous";
         img.src = imageUrl;
+        
         img.onload = () => {
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imageData.data;
-            const colorCounts = {};
-            let maxCount = 0;
-            let dominantColor = "#151518";
-
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                const a = data[i + 3];
-
-                if (a > 128) {
-                    const colorKey = `${Math.floor(r/20)*20},${Math.floor(g/20)*20},${Math.floor(b/20)*20}`;
-                    colorCounts[colorKey] = (colorCounts[colorKey] || 0) + 1;
-
-                    if (colorCounts[colorKey] > maxCount) {
-                        maxCount = colorCounts[colorKey];
-                        dominantColor = `rgb(${r},${g},${b})`;
+            try {
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+                const scale = Math.min(1, 100 / Math.max(img.width, img.height));
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                const colorCounts = {};
+                let maxCount = 0;
+                let dominantColor = "#151518";
+                
+                for (let i = 0; i < data.length; i += 16) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    const a = data[i + 3];
+                    if (a > 128) {
+                        const colorKey = `${Math.floor(r/20)*20},${Math.floor(g/20)*20},${Math.floor(b/20)*20}`;
+                        colorCounts[colorKey] = (colorCounts[colorKey] || 0) + 1;
+                        if (colorCounts[colorKey] > maxCount) {
+                            maxCount = colorCounts[colorKey];
+                            dominantColor = `rgb(${r},${g},${b})`;
+                        }
                     }
                 }
+                resolve(dominantColor);
+            } catch (e) {
+                console.warn("Не удалось извлечь цвет:", e);
+                resolve("#151518");
             }
-            resolve(dominantColor);
         };
+        
         img.onerror = () => resolve("#151518");
     });
 }
 
 // Обновление фона
 async function updateBackground() {
-    const coverImage = document.querySelector(".cover");
-    if (coverImage && coverImage.src) {
+    if (!coverImage || !coverBackground) return;
+    if (coverImage.src && coverImage.complete) {
         try {
             const dominantColor = await extractDominantColor(coverImage.src);
-            const bgElement = document.querySelector(".cover-background");
-            if (bgElement) {
-                bgElement.style.backgroundColor = dominantColor;
-                bgElement.style.backgroundImage = `url("${coverImage.src}")`;
-            }
+            coverBackground.style.backgroundColor = dominantColor;
         } catch (error) {
             console.error("Ошибка при извлечении цвета:", error);
         }
@@ -133,6 +182,7 @@ async function updateBackground() {
 
 // Рендер текста
 function renderLyrics() {
+    if (!lyricsContent) return;
     lyricsContent.innerHTML = "";
     lyrics.forEach((line, index) => {
         const el = document.createElement("div");
@@ -141,23 +191,28 @@ function renderLyrics() {
         el.dataset.time = line.time;
         el.textContent = line.text;
         el.addEventListener("click", () => {
+            if (!audio) return;
             audio.currentTime = line.time;
             if (audio.paused) {
-                audio.play();
+                audio.play().catch(e => console.warn("Не удалось воспроизвести:", e));
                 setPlayIcon(true);
             }
         });
         lyricsContent.appendChild(el);
     });
+
+    const bottomSpacer = document.createElement("div");
+    bottomSpacer.style.height = "400px";
+    bottomSpacer.style.flexShrink = "0";
+    lyricsContent.appendChild(bottomSpacer);
 }
 
 // Синхронизация текста
 function updateLyrics() {
-    if (!isLyricsOpen) return;
-
+    if (!isLyricsOpen || !audio || !lyricsContent) return;
     const currentTime = audio.currentTime;
     let newIndex = -1;
-
+    
     for (let i = 0; i < lyrics.length; i++) {
         if (currentTime >= lyrics[i].time - 0.2) {
             newIndex = i;
@@ -165,7 +220,7 @@ function updateLyrics() {
             break;
         }
     }
-
+    
     if (newIndex !== currentLyricIndex) {
         const lines = lyricsContent.querySelectorAll(".lyric-line");
         lines.forEach((line, idx) => {
@@ -184,68 +239,360 @@ function updateLyrics() {
 }
 
 // Переключение текста
-lyricsToggleBtn.addEventListener("click", () => {
-    isLyricsOpen = !isLyricsOpen;
-
-    if (isLyricsOpen) {
-        playerContent.classList.add("lyrics-open");
-        lyricsToggleBtn.classList.add("active");
-        if (lyricsContent.children.length === 0) {
-            renderLyrics();
+if (lyricsToggleBtn) {
+    lyricsToggleBtn.addEventListener("click", () => {
+        isLyricsOpen = !isLyricsOpen;
+        
+        if (isLyricsOpen) {
+            playerContent.classList.add("lyrics-open");
+            document.querySelector(".app").classList.add("lyrics-open");
+            lyricsToggleBtn.classList.add("active");
+            
+            if (lyricsContent.children.length === 0) {
+                renderLyrics();
+            }
+            
+            setTimeout(() => {
+                lyricsSection.classList.add("visible");
+                setTimeout(() => {
+                    updateLyrics();
+                }, 100);
+            }, 400);
+            
+        } else {
+            lyricsSection.classList.remove("visible");
+            
+            setTimeout(() => {
+                playerContent.classList.remove("lyrics-open");
+                document.querySelector(".app").classList.remove("lyrics-open");
+                lyricsToggleBtn.classList.remove("active");
+                currentLyricIndex = -1;
+            }, 400);
         }
-        setTimeout(() => {
-            updateLyrics();
-        }, 300);
-    } else {
-        playerContent.classList.remove("lyrics-open");
-        lyricsToggleBtn.classList.remove("active");
-        currentLyricIndex = -1;
+    });
+}
+
+// ============ ЛОГИКА КРУЖКА ============
+
+function showLoading() {
+    if (loadingOverlay) loadingOverlay.classList.add("active");
+}
+
+function hideLoading() {
+    if (loadingOverlay) loadingOverlay.classList.remove("active");
+}
+
+function showStory() {
+    if (!storyOverlay) return;
+    storyOverlay.classList.add("active");
+    document.body.style.overflow = "hidden";
+    isStoryPlaying = true;
+    
+    if (storyVideo) {
+        storyVideo.currentTime = 0;
+        storyVideo.muted = false;
+        storyVideo.volume = 0.5;
+        
+        positionSkipButton();
+        
+        const playPromise = storyVideo.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(e => console.warn("Видео не воспроизводится:", e));
+        }
     }
-});
-
-// Аудио события
-audio.addEventListener("loadedmetadata", () => {
-    durationElement.textContent = formatTime(audio.duration);
-    updateBackground();
-});
-
-audio.addEventListener("timeupdate", () => {
-    currentTimeElement.textContent = formatTime(audio.currentTime);
-    if (audio.duration) {
-        progress.value = (audio.currentTime / audio.duration) * 100;
+    
+    // Показываем кнопку СКИПНУТЬ только если кружок уже показывали когда-либо
+    if (hasEverSeenStory && skipBtn) {
+        skipBtn.classList.add("visible");
+        console.log('🔘 Кнопка СКИПНУТЬ показана (повторный просмотр)');
     }
-    updateLyrics();
-});
+}
 
-audio.addEventListener("ended", () => {
-    setPlayIcon(false);
-    progress.value = 0;
-    currentLyricIndex = -1;
-    if (isLyricsOpen) {
-        lyricsContent.querySelectorAll(".lyric-line").forEach(l => {
-            l.classList.remove("active", "past");
-        });
-        lyricsContent.scrollTop = 0;
+function hideStory() {
+    if (!storyOverlay) return;
+    storyOverlay.classList.remove("active");
+    document.body.style.overflow = "";
+    isStoryPlaying = false;
+    
+    if (storyVideo) {
+        storyVideo.pause();
+        storyVideo.currentTime = 0;
     }
-});
-
-playButton.addEventListener("click", () => {
-    if (audio.paused) {
-        audio.play();
+    
+    if (skipBtn) skipBtn.classList.remove("visible");
+    
+    // Возобновляем трек если он на паузе
+    if (audio && audio.paused && !audio.ended) {
+        audio.play().catch(e => console.warn("Не удалось возобновить трек:", e));
         setPlayIcon(true);
-    } else {
-        audio.pause();
-        setPlayIcon(false);
+    }
+}
+
+function positionSkipButton() {
+    if (!skipBtn || !storyVideo) return;
+    
+    setTimeout(() => {
+        const rect = storyVideo.getBoundingClientRect();
+        const videoBottom = rect.bottom;
+        const windowHeight = window.innerHeight;
+        
+        const topPos = Math.min(videoBottom + 20, windowHeight - 80);
+        
+        skipBtn.style.position = 'fixed';
+        skipBtn.style.top = topPos + 'px';
+        skipBtn.style.left = '50%';
+        skipBtn.style.transform = 'translateX(-50%)';
+        skipBtn.style.bottom = 'auto';
+    }, 100);
+}
+
+function finishStory() {
+    if (!isStoryPlaying) return;
+    
+    // Запоминаем что кружок уже показывали когда-либо (сохраняем в localStorage)
+    if (!hasEverSeenStory) {
+        hasEverSeenStory = true;
+        localStorage.setItem("hasEverSeenStory", "true");
+        console.log('📌 Кружок показан впервые, сохраняем в localStorage');
+    }
+    
+    hideStory();
+    clearStoryTimers();
+    storyStarted = false;
+}
+
+function startStorySequence() {
+    // Если кружок уже показывали в этой сессии — НЕ ЗАПУСКАЕМ ЕГО
+    if (storyWasShownThisSession) {
+        console.log('⏭️ Кружок уже показывали в этой сессии, пропускаем');
+        return;
+    }
+    
+    // Очищаем старые таймеры
+    clearStoryTimers();
+    storySequenceId++;
+    const currentSequenceId = storySequenceId;
+    storyStarted = true;
+    
+    console.log('🎬 Запуск последовательности кружка (ID:', currentSequenceId, ')');
+    console.log('📌 hasEverSeenStory:', hasEverSeenStory);
+    
+    // 1. Ставим трек на паузу через 10 секунд
+    const timer1 = setTimeout(() => {
+        if (currentSequenceId !== storySequenceId || !storyStarted) {
+            console.log('⏭️ Старая последовательность, пропускаем');
+            return;
+        }
+        
+        // Ставим трек на паузу
+        if (audio && !audio.paused) {
+            audio.pause();
+            setPlayIcon(false);
+            console.log('⏸️ Трек на паузе на секунде:', Math.floor(audio.currentTime));
+        }
+        
+        console.log('⏳ Показываем загрузку');
+        showLoading();
+        
+        // 2. Через 5 секунд убираем загрузку и показываем кружок
+        const timer2 = setTimeout(() => {
+            if (currentSequenceId !== storySequenceId || !storyStarted) {
+                console.log('⏭️ Старая последовательность, пропускаем');
+                return;
+            }
+            console.log('🎬 Показываем кружок');
+            hideLoading();
+            showStory();
+            
+            // Отмечаем, что кружок показан в этой сессии
+            storyWasShownThisSession = true;
+            
+            // 3. Ждем окончания видео через событие ended
+            if (storyVideo) {
+                const handleEnded = () => {
+                    console.log('✅ Видео завершилось естественно');
+                    storyVideo.removeEventListener('ended', handleEnded);
+                    storyVideo._endedHandler = null;
+                    finishStory();
+                };
+                storyVideo.addEventListener('ended', handleEnded);
+                storyVideo._endedHandler = handleEnded;
+            }
+            
+        }, 5000);
+        storyTimeouts.push(timer2);
+        
+    }, 10000);
+    storyTimeouts.push(timer1);
+}
+
+// Кнопка СКИПНУТЬ
+if (skipBtn) {
+    skipBtn.addEventListener("click", () => {
+        console.log('⏭️ СКИПНУТЬ нажата');
+        if (storyVideo && storyVideo._endedHandler) {
+            storyVideo.removeEventListener('ended', storyVideo._endedHandler);
+            storyVideo._endedHandler = null;
+        }
+        storyStarted = false;
+        finishStory();
+    });
+}
+
+// ============ МОДАЛЬНОЕ ОКНО ============
+
+function showLoveModal() {
+    if (!modalOverlay) return;
+    modalOverlay.classList.add("active");
+    document.body.style.overflow = "hidden";
+    
+    if (taxiSound) {
+        taxiSound.currentTime = 0;
+        taxiSound.play().catch(e => console.warn("Не удалось воспроизвести звук такси:", e));
+    }
+}
+
+function hideLoveModal() {
+    if (!modalOverlay) return;
+    modalOverlay.classList.remove("active");
+    document.body.style.overflow = "";
+    
+    if (taxiSound) {
+        taxiSound.pause();
+        taxiSound.currentTime = 0;
+    }
+}
+
+if (modalClose) {
+    modalClose.addEventListener("click", hideLoveModal);
+}
+
+if (modalOverlay) {
+    modalOverlay.addEventListener("click", (e) => {
+        if (e.target === modalOverlay) {
+            hideLoveModal();
+        }
+    });
+}
+
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+        if (modalOverlay?.classList.contains("active")) {
+            hideLoveModal();
+        }
+        if (storyOverlay?.classList.contains("active")) {
+            if (storyVideo && storyVideo._endedHandler) {
+                storyVideo.removeEventListener('ended', storyVideo._endedHandler);
+                storyVideo._endedHandler = null;
+            }
+            storyStarted = false;
+            finishStory();
+        }
     }
 });
 
-progress.addEventListener("input", () => {
-    if (!audio.duration) return;
-    audio.currentTime = (progress.value / 100) * audio.duration;
-});
+// ============ АУДИО СОБЫТИЯ ============
 
-// Комментарии
-let comments = JSON.parse(localStorage.getItem("trackComments") || "[]");
+if (audio) {
+    audio.addEventListener("loadedmetadata", () => {
+        if (durationElement) durationElement.textContent = formatTime(audio.duration);
+        updateBackground();
+    });
+
+    audio.addEventListener("timeupdate", () => {
+        if (currentTimeElement) currentTimeElement.textContent = formatTime(audio.currentTime);
+        if (progress && audio.duration) {
+            progress.value = (audio.currentTime / audio.duration) * 100;
+        }
+        updateLyrics();
+    });
+
+    audio.addEventListener("ended", () => {
+        console.log('🏁 Трек закончился');
+        setPlayIcon(false);
+        if (progress) progress.value = 0;
+        currentLyricIndex = -1;
+        if (isLyricsOpen && lyricsContent) {
+            lyricsContent.querySelectorAll(".lyric-line").forEach(l => {
+                l.classList.remove("active", "past");
+            });
+            lyricsContent.scrollTop = 0;
+        }
+        
+        clearStoryTimers();
+        hideLoading();
+        storyStarted = false;
+        
+        if (storyVideo && storyVideo._endedHandler) {
+            storyVideo.removeEventListener('ended', storyVideo._endedHandler);
+            storyVideo._endedHandler = null;
+        }
+        
+        if (storyOverlay && storyOverlay.classList.contains("active")) {
+            hideStory();
+        }
+        
+        const commentsSection = document.querySelector(".comments");
+        if (commentsSection) {
+            setTimeout(() => {
+                commentsSection.scrollIntoView({ 
+                    behavior: "smooth", 
+                    block: "start" 
+                });
+            }, 300);
+        }
+    });
+
+    audio.addEventListener("error", (e) => {
+        console.error("Ошибка загрузки аудио:", e);
+    });
+}
+
+if (playButton && audio) {
+    playButton.addEventListener("click", () => {
+        if (audio.paused) {
+            if (!isStoryPlaying) {
+                console.log('▶️ Воспроизведение');
+                audio.play().catch(e => console.warn("Не удалось воспроизвести:", e));
+                setPlayIcon(true);
+                startStorySequence();
+            } else {
+                audio.play().catch(e => console.warn("Не удалось воспроизвести:", e));
+                setPlayIcon(true);
+            }
+        } else {
+            audio.pause();
+            setPlayIcon(false);
+        }
+    });
+}
+
+if (progress && audio) {
+    function updateProgressFill() {
+        if (!audio.duration) return;
+        const percent = (audio.currentTime / audio.duration) * 100;
+        progress.style.setProperty('--progress', `${percent}%`);
+    }
+
+    progress.addEventListener("input", () => {
+        if (!audio.duration) return;
+        audio.currentTime = (progress.value / 100) * audio.duration;
+        updateProgressFill();
+    });
+
+    audio.addEventListener("timeupdate", () => {
+        updateProgressFill();
+    });
+}
+
+// ============ КОММЕНТАРИИ ============
+
+let comments = [];
+try {
+    comments = JSON.parse(localStorage.getItem("trackComments") || "[]");
+} catch (e) {
+    comments = [];
+}
 
 function escapeHTML(text) {
     const div = document.createElement("div");
@@ -254,95 +601,205 @@ function escapeHTML(text) {
 }
 
 function renderComments() {
+    if (!commentsList) return;
     commentsList.innerHTML = "";
+    
+    if (commentsCount) commentsCount.textContent = comments.length;
+    
     if (comments.length === 0) {
         commentsList.innerHTML = `<div class="empty-comments">Пока комментариев нет</div>`;
         return;
     }
-    comments.forEach((comment) => {
+    
+    const sortedComments = [...comments].sort((a, b) => {
+        const dateA = a.createdAt || a.timestamp || 0;
+        const dateB = b.createdAt || b.timestamp || 0;
+        return dateB - dateA;
+    });
+    
+    sortedComments.forEach((comment) => {
         const element = document.createElement("div");
         element.className = "comment";
-        element.innerHTML = `<div> <span class="comment-name">${escapeHTML(comment.name)}</span> <span class="comment-time">${formatTime(comment.timestamp)}</span> </div> <div class="comment-text">${escapeHTML(comment.text)}</div>`;
+        
+        // ЕСЛИ ОЦЕНКА 100 - ДОБАВЛЯЕМ СПЕЦИАЛЬНЫЙ КЛАСС
+        if (comment.rating === 100) {
+            element.classList.add("comment-100");
+        }
+        
+        let dateStr = "Только что";
+        if (comment.createdAt) {
+            const date = new Date(comment.createdAt);
+            dateStr = date.toLocaleString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } else if (comment.timestamp) {
+            const minutes = Math.floor(comment.timestamp / 60);
+            const seconds = Math.floor(comment.timestamp % 60);
+            dateStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
+        }
+        
+        // Отображаем оценку, если она есть
+        let ratingHtml = '';
+        if (comment.rating !== undefined && comment.rating !== null) {
+            ratingHtml = `<span class="comment-rating">⭐ ${comment.rating}/100</span>`;
+        }
+        
+        element.innerHTML = `
+            <div>
+                <span class="comment-name">${escapeHTML(comment.name)}</span>
+                <span class="comment-time">${dateStr}</span>
+                ${ratingHtml}
+            </div>
+            <div class="comment-text">${escapeHTML(comment.text)}</div>
+        `;
         commentsList.appendChild(element);
     });
 }
 
-commentButton.addEventListener("click", () => {
-    const name = nameInput.value.trim();
-    const text = commentInput.value.trim();
-    if (!name || !text) return;
-    
-    const comment = {
-        name: name,
-        text: text,
-        timestamp: audio.currentTime,
-        createdAt: Date.now()
-    };
-    
-    comments.push(comment);
-    localStorage.setItem("trackComments", JSON.stringify(comments));
-    commentInput.value = "";
-    renderComments();
-});
+if (commentButton) {
+    commentButton.addEventListener("click", () => {
+        const name = nameInput?.value.trim();
+        const text = commentInput?.value.trim();
+        
+        // Проверяем что имя заполнено
+        if (!name) {
+            alert("Пожалуйста, введите ваше имя");
+            nameInput?.focus();
+            return;
+        }
+        
+        if (!text) {
+            alert("Пожалуйста, напишите комментарий");
+            commentInput?.focus();
+            return;
+        }
+        
+        // Получаем текущую оценку из ползунка
+        const rating = parseInt(ratingSlider?.value || 0);
+        
+        const comment = {
+            name: name,
+            text: text,
+            rating: rating,
+            createdAt: Date.now()
+        };
+        comments.push(comment);
+        try {
+            localStorage.setItem("trackComments", JSON.stringify(comments));
+        } catch (e) {
+            console.warn("Не удалось сохранить в localStorage:", e);
+        }
+        if (commentInput) commentInput.value = "";
+        renderComments();
+    });
+}
+
+// Обработчик Enter для отправки комментария
+if (commentInput) {
+    commentInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && e.ctrlKey) {
+            commentButton?.click();
+        }
+    });
+}
 
 renderComments();
 
-// Голосовое
-let mediaRecorder = null;
-let audioChunks = [];
-let recordingStartTime = null;
-let recordingTimerInterval = null;
+// ============ ОЦЕНКА ТРЕКА ============
+// ============ ИНИЦИАЛИЗАЦИЯ ОЦЕНКИ ============
 
-recordButton.addEventListener("click", async () => {
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-        mediaRecorder.stop();
-        return;
+if (ratingSlider && ratingValue) {
+    const savedRating = localStorage.getItem("trackRating");
+    if (savedRating !== null) {
+        const rating = parseInt(savedRating);
+        ratingSlider.value = rating;
+        ratingValue.textContent = rating;
+        updateRatingFill(rating);
+        currentRating = rating;
     }
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-        
-        mediaRecorder.addEventListener("dataavailable", (event) => {
-            if (event.data.size > 0) {
-                audioChunks.push(event.data);
-            }
-        });
-        
-        mediaRecorder.addEventListener("stop", () => {
-            stream.getTracks().forEach((track) => track.stop());
-            clearInterval(recordingTimerInterval);
-            recordButton.classList.remove("recording");
-            recordText.textContent = "Записать";
-            recordTimer.textContent = "0:00";
-            
-            const blob = new Blob(audioChunks, { type: "audio/webm" });
-            const url = URL.createObjectURL(blob);
-            const audioElement = document.createElement("audio");
-            audioElement.controls = true;
-            audioElement.src = url;
-            audioElement.style.width = "100%";
-            audioElement.style.marginTop = "12px";
-            recordButton.parentElement.appendChild(audioElement);
-        });
-        
-        mediaRecorder.start();
-        recordingStartTime = Date.now();
-        recordButton.classList.add("recording");
-        recordText.textContent = "Остановить";
-        
-        recordingTimerInterval = setInterval(() => {
-            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
-            recordTimer.textContent = formatTime(elapsed);
-        }, 1000);
-    } catch (error) {
-        console.error(error);
-        alert("Не удалось получить доступ к микрофону.");
-    }
-});
+    
+    ratingSlider.addEventListener("input", () => {
+        const value = parseInt(ratingSlider.value);
+        ratingValue.textContent = value;
+        currentRating = value;
+        updateRatingFill(value);
+        localStorage.setItem("trackRating", value);
+    });
+}
+function updateRatingFill(value) {
+    if (!ratingSlider) return;
+    const percent = value;
+    ratingSlider.style.setProperty('--rating', `${percent}%`);
+    ratingSlider.style.background = `linear-gradient(to right, #000000 0%, #000000 ${percent}%, rgba(255, 255, 255, 0.15) ${percent}%, rgba(255, 255, 255, 0.15) 100%)`;
+}
 
-// Инициализация при загрузке
+// ============ ОТПРАВКА ОЦЕНКИ В КОММЕНТАРИИ ============
+
+if (sendRatingButton) {
+    sendRatingButton.addEventListener("click", () => {
+        const name = nameInput?.value.trim();
+        
+        // Проверяем что имя заполнено
+        if (!name) {
+            alert("Пожалуйста, сначала введите ваше имя");
+            nameInput?.focus();
+            return;
+        }
+        
+        // Получаем текущую оценку из ползунка
+        const rating = parseInt(ratingSlider?.value || 0);
+        
+        if (rating === 0) {
+            alert("Пожалуйста, поставьте оценку от 1 до 100");
+            return;
+        }
+        
+        // Если оценка 100 — добавляем особый текст
+let commentText = `Оценил(а) трек на ${rating}/100`;
+if (rating === 100) {
+    commentText = `Оценил(а) трек на 100/100! Людское подтверждает! ❤️`;
+}
+
+const comment = {
+    name: name,
+    text: commentText,
+    rating: rating,
+    createdAt: Date.now()
+};
+        comments.push(comment);
+        try {
+            localStorage.setItem("trackComments", JSON.stringify(comments));
+        } catch (e) {
+            console.warn("Не удалось сохранить в localStorage:", e);
+        }
+        renderComments();
+        
+        // Если оценка 100 — показываем модалку с картинкой
+        if (rating === 100) {
+            showLoveModal();
+        }
+        
+        // Сбрасываем ползунок после отправки
+        ratingSlider.value = 0;
+        ratingValue.textContent = "0";
+        updateRatingFill(0);
+        
+    });
+}
+
+// ============ ИНИЦИАЛИЗАЦИЯ ============
+
 document.addEventListener("DOMContentLoaded", () => {
     updateBackground();
     setPlayIcon(false);
+    
+    // При загрузке страницы сбрасываем флаг показа в этой сессии
+    storyWasShownThisSession = false;
+    storyStarted = false;
+    console.log('🔄 Страница загружена');
+    console.log('📌 hasEverSeenStory (из localStorage):', hasEverSeenStory);
 });
