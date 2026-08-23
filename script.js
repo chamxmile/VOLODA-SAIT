@@ -378,27 +378,22 @@ function showStory() {
     
     if (storyVideo) {
         storyVideo.currentTime = 0;
-        
-        // Для мобилок: сначала с muted, потом включаем звук
-        storyVideo.muted = true;
         storyVideo.playsInline = true;
         storyVideo.setAttribute('playsinline', '');
         storyVideo.setAttribute('webkit-playsinline', '');
         
+        // Убираем muted — звук будет
+        storyVideo.muted = false;
+        storyVideo.volume = 0.5;
+        
         positionSkipButton();
         
-        // Пытаемся запустить с muted
+        // Пытаемся запустить со звуком
         var playPromise = storyVideo.play();
         if (playPromise !== undefined) {
-            playPromise.then(function() {
-                console.log('✅ Видео запущено');
-                // После запуска включаем звук (только если не на телефоне или после жеста)
-                setTimeout(function() {
-                    storyVideo.muted = false;
-                    storyVideo.volume = 0.5;
-                }, 100);
-            }).catch(function() {
-                // Если не запустилось - ждём клик
+            playPromise.catch(function(error) {
+                console.log('Автовоспроизведение заблокировано, ждём клик');
+                // Ждём клик по кружку
                 storyOverlay.addEventListener('click', function playOnClick() {
                     storyVideo.muted = false;
                     storyVideo.volume = 0.5;
