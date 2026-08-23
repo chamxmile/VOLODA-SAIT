@@ -1,0 +1,565 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --background: #0b0b0d;
+    --card: #151518;
+    --card-light: #1c1c20;
+    --text: #ffffff;
+    --muted: #8c8c95;
+    --border: #29292e;
+    --accent: #ffffff;
+}
+
+body {
+    min-height: 100vh;
+    background: var(--background);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+    overflow-x: hidden;
+}
+
+.app {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px 60px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Фон страницы */
+.app::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url("cover.jpg");
+    background-size: cover;
+    background-position: center;
+    filter: blur(80px);
+    transform: scale(1.5);
+    opacity: 0.3;
+    z-index: -1;
+}
+
+.player {
+    width: 100%;
+}
+
+/* Layout: по умолчанию обложка по центру */
+.player-content {
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+}
+
+.player-content.lyrics-open {
+    display: flex;
+    gap: 60px;
+    align-items: center;
+}
+
+.cover-section {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 24px 16px 32px;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.player-content.lyrics-open .cover-section {
+    flex: 0 0 380px;
+    margin: 0;
+}
+
+.cover-background {
+    position: absolute;
+    inset: -40px;
+    background-image: url("cover.jpg");
+    background-size: cover;
+    background-position: center;
+    filter: blur(60px);
+    transform: scale(1.3);
+    opacity: 0.5;
+    border-radius: 24px;
+}
+
+.cover-wrapper {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.cover {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.track-info {
+    margin-top: 24px;
+    text-align: center;
+}
+
+.track-info h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.6px;
+    margin-bottom: 6px;
+    color: #ffffff;
+}
+
+.track-info p {
+    color: #ffffff;
+    font-size: 16px;
+}
+
+/* === КНОПКИ НА ОБЛОЖКЕ (как в Яндекс Музыке) === */
+
+/* Затемнение при наведении */
+.cover-wrapper::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0);
+    transition: background 0.3s ease;
+    z-index: 5;
+    pointer-events: none;
+    border-radius: 10px;
+}
+
+.cover-wrapper:hover::before {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* Контейнер кнопок поверх обложки */
+.cover-controls {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.cover-wrapper:hover .cover-controls {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.cover-controls > * {
+    pointer-events: all;
+}
+
+/* Средний ряд кнопок */
+.cover-controls-middle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+/* Кнопка Play */
+.cover-btn-play {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #ffeb3b;
+    border: none;
+    color: #000;
+    font-size: 28px;
+    padding-left: 5px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    transition: transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cover-btn-play:hover {
+    transform: scale(1.08);
+}
+
+.cover-btn-play:active {
+    transform: scale(0.95);
+}
+
+/* Нижний ряд */
+.cover-controls-bottom {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+/* Кнопка текста внизу */
+.cover-btn-bottom {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: none;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.cover-btn-bottom:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: scale(1.05);
+}
+
+.cover-btn-bottom.active {
+    background: #fff;
+    color: #000;
+}
+
+/* Прогресс-бар */
+.progress-container {
+    margin-top: 20px;
+    padding: 0 4px;
+}
+
+#progress {
+    width: 100%;
+    height: 4px;
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+#progress::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+
+#progress::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+
+.time {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* Секция с текстом */
+.lyrics-section {
+    flex: 1;
+    min-width: 0;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    height: 600px;
+    overflow: hidden;
+    display: none;
+}
+
+.player-content.lyrics-open .lyrics-section {
+    display: block;
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: all;
+}
+
+.lyrics-content {
+    height: 100%;
+    overflow-y: auto;
+    padding: 50% 0 50%;
+    scroll-behavior: smooth;
+    mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.lyrics-content::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.lyric-line {
+    padding: 18px 24px;
+    margin: 8px 0;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.4;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    border-radius: 12px;
+    text-align: left;
+}
+
+.lyric-line:hover {
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateX(5px);
+}
+
+.lyric-line.active {
+    color: #ffffff;
+    font-size: 30px;
+    font-weight: 700;
+    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
+    transform: scale(1.05);
+    background: transparent;
+}
+
+.lyric-line.past {
+    opacity: 0.35;
+}
+
+/* Комментарии и голосовое */
+.comments,
+.record-section {
+    margin-top: 60px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.section-header h2 {
+    font-size: 18px;
+    font-weight: 650;
+}
+
+.section-header span {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.comment-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.comment-form input,
+.comment-form textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    outline: none;
+    background: var(--card);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+}
+
+.comment-form input {
+    height: 46px;
+    padding: 0 14px;
+}
+
+.comment-form textarea {
+    resize: none;
+    padding: 13px 14px;
+}
+
+.comment-form input:focus,
+.comment-form textarea:focus {
+    border-color: #55555c;
+}
+
+.comment-form button {
+    height: 46px;
+    border: none;
+    border-radius: 12px;
+    background: var(--text);
+    color: #000;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.comments-list {
+    margin-top: 18px;
+}
+
+.empty-comments {
+    padding: 25px 0;
+    color: var(--muted);
+    text-align: center;
+    font-size: 14px;
+}
+
+.comment {
+    padding: 15px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.comment-name {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.comment-time {
+    margin-left: 6px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.comment-text {
+    margin-top: 7px;
+    color: #d5d5da;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.record-button {
+    width: 100%;
+    height: 52px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--card);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.record-button.recording {
+    background: #241719;
+    border-color: #633b40;
+}
+
+.record-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 7px;
+    border-radius: 50%;
+    background: #ff4d5e;
+}
+
+.record-timer {
+    margin-top: 10px;
+    color: var(--muted);
+    text-align: center;
+    font-size: 13px;
+}
+
+/* Адаптив */
+@media (max-width: 900px) {
+    .player-content {
+        min-height: 50vh;
+    }
+
+    .player-content.lyrics-open {
+        flex-direction: column;
+        gap: 30px;
+    }
+
+    .cover-section {
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .player-content.lyrics-open .cover-section {
+        flex: 0 0 auto;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .lyrics-section {
+        width: 100%;
+        height: 400px;
+        opacity: 1;
+        transform: none;
+        pointer-events: all;
+    }
+
+    .player-content.lyrics-open .lyrics-section {
+        opacity: 1;
+        transform: none;
+        display: block;
+    }
+
+    .lyric-line {
+        font-size: 20px;
+    }
+
+    .lyric-line.active {
+        font-size: 24px;
+    }
+
+    .app {
+        padding: 20px 16px 60px;
+    }
+}
+
+@media (max-width: 600px) {
+    .cover-section {
+        max-width: 280px;
+    }
+
+    .track-info h1 {
+        font-size: 22px;
+    }
+
+    .lyric-line {
+        font-size: 18px;
+        padding: 14px 18px;
+    }
+
+    .lyric-line.active {
+        font-size: 22px;
+    }
+}
+
+.cover-btn-play img,
+.cover-btn-bottom img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    display: block;
+}
+
+/* Если хочешь чтобы активная иконка текста менялась */
+.cover-btn-bottom.active img {
+    /* Можно добавить фильтр или opacity */
+    filter: brightness(0) saturate(100%); /* Делает иконку чёрной */
+}
