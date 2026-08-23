@@ -370,7 +370,7 @@ function hideLoading() {
     if (loadingOverlay) loadingOverlay.classList.remove("active");
 }
 
-ffunction showStory() {
+function showStory() {
     if (!storyOverlay) return;
     storyOverlay.classList.add("active");
     document.body.style.overflow = "hidden";
@@ -378,6 +378,8 @@ ffunction showStory() {
     
     if (storyVideo) {
         storyVideo.currentTime = 0;
+        
+        // Для мобилок: сначала с muted, потом включаем звук
         storyVideo.muted = true;
         storyVideo.playsInline = true;
         storyVideo.setAttribute('playsinline', '');
@@ -385,14 +387,26 @@ ffunction showStory() {
         
         positionSkipButton();
         
-        // Пытаемся запустить
-        storyVideo.play().catch(function() {
-            // Если не запустилось — ждём клик по кружку
-            storyOverlay.addEventListener('click', function playOnClick() {
-                storyVideo.play().catch(function() {});
-                storyOverlay.removeEventListener('click', playOnClick);
-            }, { once: true });
-        });
+        // Пытаемся запустить с muted
+        var playPromise = storyVideo.play();
+        if (playPromise !== undefined) {
+            playPromise.then(function() {
+                console.log('✅ Видео запущено');
+                // После запуска включаем звук (только если не на телефоне или после жеста)
+                setTimeout(function() {
+                    storyVideo.muted = false;
+                    storyVideo.volume = 0.5;
+                }, 100);
+            }).catch(function() {
+                // Если не запустилось - ждём клик
+                storyOverlay.addEventListener('click', function playOnClick() {
+                    storyVideo.muted = false;
+                    storyVideo.volume = 0.5;
+                    storyVideo.play().catch(function() {});
+                    storyOverlay.removeEventListener('click', playOnClick);
+                }, { once: true });
+            });
+        }
     }
     
     if (hasEverSeenStory && skipBtn) {
