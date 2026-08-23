@@ -765,9 +765,9 @@ if (commentButton) {
             image_url: null
         };
         
-        await saveComment(comment);  // ← В SUPABASE
+        await saveComment(comment);
         if (commentInput) commentInput.value = "";
-        await renderComments();  // ← Перезагружаем
+        await renderComments();
     });
 }
 
@@ -780,10 +780,7 @@ if (commentInput) {
     });
 }
 
-renderComments();
-
 // ============ ОЦЕНКА ТРЕКА ============
-// ============ ИНИЦИАЛИЗАЦИЯ ОЦЕНКИ ============
 
 if (ratingSlider && ratingValue) {
     const savedRating = localStorage.getItem("trackRating");
@@ -803,6 +800,7 @@ if (ratingSlider && ratingValue) {
         localStorage.setItem("trackRating", value);
     });
 }
+
 function updateRatingFill(value) {
     if (!ratingSlider) return;
     const percent = value;
@@ -835,16 +833,13 @@ if (sendRatingButton) {
         if (rating === 100) {
             commentText = `⭐ Оценил(а) трек на 100/100! 👑 ЛЮДСКОЕ ПОДТВЕРЖДЕНО! 🔥`;
             
-            // Пытаемся загрузить картинку в Supabase Storage
             console.log('📤 Загрузка картинки в Supabase...');
             imageUrl = await uploadLoveImage(name);
             console.log('✅ Картинка загружена, URL:', imageUrl);
             
-            // Показываем модалку
             showLoveModal();
         }
         
-        // СОХРАНЯЕМ В SUPABASE (а не в localStorage!)
         const comment = {
             name: name,
             text: commentText,
@@ -852,12 +847,9 @@ if (sendRatingButton) {
             image_url: imageUrl
         };
         
-        await saveComment(comment);  // ← ЭТО ГЛАВНОЕ!
-        
-        // Перезагружаем комментарии из Supabase
+        await saveComment(comment);
         await renderComments();
         
-        // Сбрасываем ползунок
         ratingSlider.value = 0;
         ratingValue.textContent = "0";
         updateRatingFill(0);
