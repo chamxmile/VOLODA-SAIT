@@ -5,7 +5,6 @@ function $(id) {
     return el;
 }
 
-
 const audio = $("audio");
 const playButton = $("playButton");
 const progress = $("progress");
@@ -36,8 +35,97 @@ const storyVideo = $("storyVideo");
 const skipBtn = $("skipBtn");
 const sendRatingButton = $("sendRatingButton");
 
+
+// ============ ПОДКЛЮЧЕНИЕ К SUPABASE ============
 const SUPABASE_URL = 'https://sqjtrcqumszdrkyzlmsy.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxanRyY3F1bXN6ZHJreXpsbXN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0ODU2MTIsImV4cCI6MjEwMzA2MTYxMn0.0P7GL1JXfzf3dIsSPj6HnKNzg8ssEN9MRk2dhLSmr2Q';
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ============ ФУНКЦИИ РАБОТЫ С БД ============
+
+// Загрузка комментариев
+async function loadComments() {
+    try {
+        console.log('📥 Загрузка комментариев...');
+        const { data, error } = await supabaseClient
+            .from('comments')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('❌ Ошибка:', error);
+            return [];
+        }
+        console.log('✅ Загружено:', data?.length || 0);
+        return data || [];
+    } catch (e) {
+        console.error('❌ Ошибка загрузки:', e);
+        return [];
+    }
+}
+
+// Сохранение комментария
+async function saveComment(comment) {
+    try {
+        console.log('💾 Сохранение...', comment);
+        const { data, error } = await supabaseClient
+            .from('comments')
+            .insert([comment])
+            .select();
+        
+        if (error) {
+            console.error('❌ Ошибка сохранения:', error);
+            alert('Ошибка сохранения: ' + error.message);
+            return null;
+        }
+        console.log('✅ Сохранено!', data);
+        return data?.[0] || null;
+    } catch (e) {
+        console.error('❌ Ошибка:', e);
+        alert('Ошибка: ' + e.message);
+        return null;
+    }
+}
+
+// Загрузка картинки в Storage
+async function uploadLoveImage(name) {
+    try {
+        console.log('📤 Загрузка картинки...');
+        
+        // Загружаем love.png из папки проекта
+        const response = await fetch('love.png');
+        if (!response.ok) {
+            throw new Error('Не удалось загрузить love.png');
+        }
+        const blob = await response.blob();
+        
+        const fileName = `love_${Date.now()}_${name.replace(/\s/g, '_')}.png`;
+        
+        const { data, error } = await supabaseClient.storage
+            .from('love-images')
+            .upload(fileName, blob, {
+                contentType: 'image/png',
+                cacheControl: '3600'
+            });
+        
+        if (error) {
+            console.error('❌ Ошибка загрузки картинки:', error);
+            return null;
+        }
+        
+        // Получаем публичную ссылку
+        const { data: urlData } = supabaseClient.storage
+            .from('love-images')
+            .getPublicUrl(fileName);
+        
+        console.log('✅ Картинка загружена:', urlData.publicUrl);
+        return urlData.publicUrl;
+    } catch (e) {
+        console.error('❌ Ошибка:', e);
+        return null;
+    }
+}
 
 // Состояния кружка
 let isFirstPlay = true;
@@ -587,48 +675,38 @@ if (progress && audio) {
 
 // ============ КОММЕНТАРИИ ============
 
-let comments = [];
-try {
-    comments = JSON.parse(localStorage.getItem("trackComments") || "[]");
-} catch (e) {
-    comments = [];
-}
-
 function escapeHTML(text) {
     const div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML;
 }
 
-function renderComments() {
+// Рендер комментариев ИЗ SUPABASE
+async function renderComments() {
     if (!commentsList) return;
     commentsList.innerHTML = "";
     
-    if (commentsCount) commentsCount.textContent = comments.length;
+    // Загружаем из Supabase
+    const dbComments = await loadComments();
     
-    if (comments.length === 0) {
+    if (commentsCount) commentsCount.textContent = dbComments.length;
+    
+    if (dbComments.length === 0) {
         commentsList.innerHTML = `<div class="empty-comments">Пока комментариев нет</div>`;
         return;
     }
     
-    const sortedComments = [...comments].sort((a, b) => {
-        const dateA = a.createdAt || a.timestamp || 0;
-        const dateB = b.createdAt || b.timestamp || 0;
-        return dateB - dateA;
-    });
-    
-    sortedComments.forEach((comment) => {
+    dbComments.forEach((comment) => {
         const element = document.createElement("div");
         element.className = "comment";
         
-        // ЕСЛИ ОЦЕНКА 100 - ДОБАВЛЯЕМ СПЕЦИАЛЬНЫЙ КЛАСС
         if (comment.rating === 100) {
             element.classList.add("comment-100");
         }
         
         let dateStr = "Только что";
-        if (comment.createdAt) {
-            const date = new Date(comment.createdAt);
+        if (comment.created_at) {
+            const date = new Date(comment.created_at);
             dateStr = date.toLocaleString('ru-RU', {
                 day: '2-digit',
                 month: '2-digit',
@@ -636,16 +714,17 @@ function renderComments() {
                 hour: '2-digit',
                 minute: '2-digit'
             });
-        } else if (comment.timestamp) {
-            const minutes = Math.floor(comment.timestamp / 60);
-            const seconds = Math.floor(comment.timestamp % 60);
-            dateStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
         }
         
-        // Отображаем оценку, если она есть
         let ratingHtml = '';
         if (comment.rating !== undefined && comment.rating !== null) {
             ratingHtml = `<span class="comment-rating">⭐ ${comment.rating}/100</span>`;
+        }
+        
+        // Если есть картинка — показываем её
+        let imageHtml = '';
+        if (comment.image_url) {
+            imageHtml = `<img src="${comment.image_url}" alt="Людское" class="comment-image">`;
         }
         
         element.innerHTML = `
@@ -655,46 +734,40 @@ function renderComments() {
                 ${ratingHtml}
             </div>
             <div class="comment-text">${escapeHTML(comment.text)}</div>
+            ${imageHtml}
         `;
         commentsList.appendChild(element);
     });
 }
 
 if (commentButton) {
-    commentButton.addEventListener("click", () => {
+    commentButton.addEventListener("click", async () => {
         const name = nameInput?.value.trim();
         const text = commentInput?.value.trim();
         
-        // Проверяем что имя заполнено
         if (!name) {
             alert("Пожалуйста, введите ваше имя");
             nameInput?.focus();
             return;
         }
-        
         if (!text) {
             alert("Пожалуйста, напишите комментарий");
             commentInput?.focus();
             return;
         }
         
-        // Получаем текущую оценку из ползунка
         const rating = parseInt(ratingSlider?.value || 0);
         
         const comment = {
             name: name,
             text: text,
             rating: rating,
-            createdAt: Date.now()
+            image_url: null
         };
-        comments.push(comment);
-        try {
-            localStorage.setItem("trackComments", JSON.stringify(comments));
-        } catch (e) {
-            console.warn("Не удалось сохранить в localStorage:", e);
-        }
+        
+        await saveComment(comment);  // ← В SUPABASE
         if (commentInput) commentInput.value = "";
-        renderComments();
+        await renderComments();  // ← Перезагружаем
     });
 }
 
@@ -740,17 +813,15 @@ function updateRatingFill(value) {
 // ============ ОТПРАВКА ОЦЕНКИ В КОММЕНТАРИИ ============
 
 if (sendRatingButton) {
-    sendRatingButton.addEventListener("click", () => {
+    sendRatingButton.addEventListener("click", async () => {
         const name = nameInput?.value.trim();
         
-        // Проверяем что имя заполнено
         if (!name) {
             alert("Пожалуйста, сначала введите ваше имя");
             nameInput?.focus();
             return;
         }
         
-        // Получаем текущую оценку из ползунка
         const rating = parseInt(ratingSlider?.value || 0);
         
         if (rating === 0) {
@@ -758,46 +829,52 @@ if (sendRatingButton) {
             return;
         }
         
-        // Если оценка 100 — добавляем особый текст
-let commentText = `Оценил(а) трек на ${rating}/100`;
-if (rating === 100) {
-    commentText = `Оценил(а) трек на 100/100! Людское подтверждает! ❤️`;
-}
-
-const comment = {
-    name: name,
-    text: commentText,
-    rating: rating,
-    createdAt: Date.now()
-};
-        comments.push(comment);
-        try {
-            localStorage.setItem("trackComments", JSON.stringify(comments));
-        } catch (e) {
-            console.warn("Не удалось сохранить в localStorage:", e);
-        }
-        renderComments();
+        let commentText = `Оценил(а) трек на ${rating}/100`;
+        let imageUrl = null;
         
-        // Если оценка 100 — показываем модалку с картинкой
         if (rating === 100) {
+            commentText = `⭐ Оценил(а) трек на 100/100! 👑 ЛЮДСКОЕ ПОДТВЕРЖДЕНО! 🔥`;
+            
+            // Пытаемся загрузить картинку в Supabase Storage
+            console.log('📤 Загрузка картинки в Supabase...');
+            imageUrl = await uploadLoveImage(name);
+            console.log('✅ Картинка загружена, URL:', imageUrl);
+            
+            // Показываем модалку
             showLoveModal();
         }
         
-        // Сбрасываем ползунок после отправки
+        // СОХРАНЯЕМ В SUPABASE (а не в localStorage!)
+        const comment = {
+            name: name,
+            text: commentText,
+            rating: rating,
+            image_url: imageUrl
+        };
+        
+        await saveComment(comment);  // ← ЭТО ГЛАВНОЕ!
+        
+        // Перезагружаем комментарии из Supabase
+        await renderComments();
+        
+        // Сбрасываем ползунок
         ratingSlider.value = 0;
         ratingValue.textContent = "0";
         updateRatingFill(0);
-        
     });
 }
 
 // ============ ИНИЦИАЛИЗАЦИЯ ============
 
+// Загружаем комментарии при старте
+(async () => {
+    await renderComments();
+})();
+
 document.addEventListener("DOMContentLoaded", () => {
     updateBackground();
     setPlayIcon(false);
     
-    // При загрузке страницы сбрасываем флаг показа в этой сессии
     storyWasShownThisSession = false;
     storyStarted = false;
     console.log('🔄 Страница загружена');
