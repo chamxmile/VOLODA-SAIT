@@ -378,30 +378,33 @@ function showStory() {
     
     if (storyVideo) {
         storyVideo.currentTime = 0;
+        storyVideo.muted = false;
+        storyVideo.volume = 0.5;
         storyVideo.playsInline = true;
         storyVideo.setAttribute('playsinline', '');
         storyVideo.setAttribute('webkit-playsinline', '');
         
-        // Убираем muted — звук будет
-        storyVideo.muted = false;
-        storyVideo.volume = 0.5;
-        
         positionSkipButton();
         
-        // Пытаемся запустить со звуком
+        // Проверяем мобильное устройство
+        var isMobile = /Android|iPhone|iPad|iPod|BlackBerry|Opera Mini|IEMobile/i.test(navigator.userAgent);
+        
+        // Пытаемся запустить
         var playPromise = storyVideo.play();
         if (playPromise !== undefined) {
-            playPromise.catch(function(error) {
-                console.log('Автовоспроизведение заблокировано, ждём клик');
-                // Ждём клик по кружку
-                storyOverlay.addEventListener('click', function playOnClick() {
-                    storyVideo.muted = false;
-                    storyVideo.volume = 0.5;
-                    storyVideo.play().catch(function() {});
-                    storyOverlay.removeEventListener('click', playOnClick);
-                }, { once: true });
+            playPromise.catch(function() {
+                // Если не запустилось И это мобилка — показываем кнопку Play
+                if (isMobile) {
+                    showMobilePlayButton();
+                }
             });
         }
+        
+        // Если видео запустилось — убираем кнопку если есть
+        storyVideo.addEventListener('playing', function() {
+            var btn = document.querySelector('.story-play-btn');
+            if (btn) btn.remove();
+        });
     }
     
     if (hasEverSeenStory && skipBtn) {
@@ -410,11 +413,33 @@ function showStory() {
     }
 }
 
+// Функция показа кнопки Play по центру кружка
+function showMobilePlayButton() {
+    var btn = document.querySelector('.story-play-btn');
+    if (btn) return;
+    
+    btn = document.createElement('div');
+    btn.className = 'story-play-btn';
+    btn.innerHTML = '▶';
+    storyOverlay.appendChild(btn);
+    
+    btn.addEventListener('click', function() {
+        storyVideo.muted = false;
+        storyVideo.volume = 0.5;
+        storyVideo.play().catch(function() {});
+        btn.remove();
+    });
+}
+
 function hideStory() {
     if (!storyOverlay) return;
     storyOverlay.classList.remove("active");
     document.body.style.overflow = "";
     isStoryPlaying = false;
+    
+    // Удаляем кнопку Play если есть
+    var btn = document.querySelector('.story-play-btn');
+    if (btn) btn.remove();
     
     if (storyVideo) {
         storyVideo.pause();
@@ -423,7 +448,6 @@ function hideStory() {
     
     if (skipBtn) skipBtn.classList.remove("visible");
     
-    // Возобновляем трек если он на паузе
     if (audio && audio.paused && !audio.ended) {
         audio.play().catch(e => console.warn("Не удалось возобновить трек:", e));
         setPlayIcon(true);

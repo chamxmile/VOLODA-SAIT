@@ -1128,3 +1128,35 @@ body {
     }
 }
 
+/* ============ КНОПКА PLAY НА КРУЖКЕ (ТОЛЬКО МОБИЛКИ) ============ */
+.story-play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 3px solid rgba(255, 255, 255, 0.5);
+    color: #fff;
+    font-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 20;
+    transition: transform 0.2s ease, background 0.2s ease;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+}
+
+.story-play-btn:hover {
+    transform: translate(-50%, -50%) scale(1.1);
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.story-play-btn:active {
+    transform: translate(-50%, -50%) scale(0.9);
+}
