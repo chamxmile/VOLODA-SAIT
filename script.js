@@ -378,18 +378,31 @@ function showStory() {
     
     if (storyVideo) {
         storyVideo.currentTime = 0;
-        storyVideo.muted = false;
-        storyVideo.volume = 0.5;
+        storyVideo.muted = true;
+        storyVideo.playsInline = true;
+        storyVideo.setAttribute('playsinline', '');
         
         positionSkipButton();
         
-        const playPromise = storyVideo.play();
+        // Для мобилок - пробуем воспроизвести
+        var playPromise = storyVideo.play();
         if (playPromise !== undefined) {
-            playPromise.catch(e => console.warn("Видео не воспроизводится:", e));
+            playPromise.then(function() {
+                // Автовоспроизведение сработало
+                console.log('✅ Видео играет');
+            }).catch(function(error) {
+                console.warn('Автовоспроизведение заблокировано, ждём касания');
+                // На мобилках нужно касание пользователя
+                document.addEventListener('touchstart', function playOnTouch() {
+                    storyVideo.play().catch(function(e) {
+                        console.warn('Всё равно не играет:', e);
+                    });
+                    document.removeEventListener('touchstart', playOnTouch);
+                }, { once: true });
+            });
         }
     }
     
-    // Показываем кнопку СКИПНУТЬ только если кружок уже показывали когда-либо
     if (hasEverSeenStory && skipBtn) {
         skipBtn.classList.add("visible");
         console.log('🔘 Кнопка СКИПНУТЬ показана (повторный просмотр)');
