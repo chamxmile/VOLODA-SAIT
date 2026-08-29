@@ -163,3 +163,30 @@ function updateUploadButton(hasPermission) {
         console.log('🔒 Кнопка загрузки СКРЫТА');
     }
 }
+
+// ============================================================
+// ОБНОВЛЕНИЕ АВАТАРА В ПРОФИЛЕ
+// ============================================================
+
+async function updateProfileAvatar(user) {
+    if (!user || !user.id) return;
+    
+    const avatarEl = document.getElementById('profileAvatar');
+    if (!avatarEl) return;
+    
+    // Функция getUserAvatar определена в profile.js
+    if (typeof getUserAvatar === 'function') {
+        try {
+            const avatarUrl = await getUserAvatar(user.id);
+            if (avatarUrl) {
+                avatarEl.innerHTML = `<img src="${avatarUrl}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">`;
+                return;
+            }
+        } catch (e) {
+            console.warn('⚠️ Не удалось загрузить аватар:', e);
+        }
+    }
+    
+    // Если аватар не загрузился — показываем эмодзи
+    avatarEl.textContent = '👤';
+}

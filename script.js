@@ -60,7 +60,6 @@ function navigateTo(page) {
 async function initApp() {
     console.log('🚀 Инициализация DB Sound...');
     
-    // Инициализируем навигацию
     initNavigation();
     
     const user = initTelegram();
@@ -70,14 +69,20 @@ async function initApp() {
         dbUser = await getOrCreateUser(user);
     }
     
-    if (user) updateUserUI(user);
+    if (user) {
+        updateUserUI(user);
+        // 🔥 ДОБАВЬ ЭТУ СТРОЧКУ:
+        if (typeof updateProfileAvatar === 'function') {
+            await updateProfileAvatar(user);
+        }
+    }
+    
     if (dbUser) updateUploadButton(currentUserPermissions.can_upload);
     
     navigateTo('home');
     await loadTracksToHome();
     initTrackPlayer();
     
-    // 🔥 ЗАГРУЖАЕМ ПРОФИЛЬ ПОСЛЕ ИНИЦИАЛИЗАЦИИ
     if (typeof loadMyTracks === 'function') {
         await loadMyTracks();
     }

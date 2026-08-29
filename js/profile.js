@@ -2,7 +2,66 @@
 // ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ
 // ============================================================
 
-// Загрузка проектов пользователя
+// ============================================================
+// ПОЛУЧЕНИЕ АВАТАРА ПОЛЬЗОВАТЕЛЯ ЧЕРЕЗ TELEGRAM BOT API
+// ============================================================
+
+// ⚠️ ЗАМЕНИ НА СВОЙ ТОКЕН БОТА!
+const TELEGRAM_BOT_TOKEN = '8738300634:AAEpt28j3rvGyqibMI8yPWFZLJCVhxEi0lM';
+
+async function getUserAvatar(userId) {
+    if (!userId) return null;
+    
+    try {
+        // Проверяем, есть ли аватар в кеше (чтобы не делать лишние запросы)
+        const cached = localStorage.getItem(`avatar_${userId}`);
+        if (cached) {
+            const { url, timestamp } = JSON.parse(cached);
+            // Кеш на 1 час
+            if (Date.now() - timestamp < 3600000) {
+                return url;
+            }
+        }
+        
+        // Запрашиваем фото профиля у Telegram
+        const response = await fetch(
+            `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUserProfilePhotos?user_id=${userId}&limit=1`
+        );
+        const data = await response.json();
+        
+        if (data.ok && data.result && data.result.total_count > 0) {
+            const photo = data.result.photos[0][0]; // Берём самую маленькую фотку
+            const fileId = photo.file_id;
+            
+            // Получаем путь к файлу
+            const fileResponse = await fetch(
+                `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`
+            );
+            const fileData = await fileResponse.json();
+            
+            if (fileData.ok) {
+                const avatarUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${fileData.result.file_path}`;
+                
+                // Сохраняем в кеш
+                localStorage.setItem(`avatar_${userId}`, JSON.stringify({
+                    url: avatarUrl,
+                    timestamp: Date.now()
+                }));
+                
+                return avatarUrl;
+            }
+        }
+        return null;
+    } catch (e) {
+        console.warn('⚠️ Не удалось загрузить аватар:', e);
+        return null;
+    }
+}
+
+// ============================================================
+// ЗАГРУЗКА ПРОЕКТОВ ПОЛЬЗОВАТЕЛЯ
+// ============================================================
+
 async function loadMyTracks() {
     const container = document.getElementById('myTracksList');
     const countEl = document.getElementById('myTracksCount');
@@ -103,6 +162,25 @@ async function loadMyTracks() {
     } catch (e) {
         console.error('❌ Ошибка загрузки проектов:', e);
         container.innerHTML = `<div class="empty-state">❌ Ошибка загрузки</div>`;
+    }
+}
+
+// ============================================================
+// ОБНОВЛЕНИЕ UI С АВАТАРОМ
+// ============================================================
+
+// Эту функцию нужно вызвать из auth.js после получения пользователя
+async function updateProfileAvatar(user) {
+    if (!user || !user.id) return;
+    
+    const avatarEl = document.getElementById('profileAvatar');
+    if (!avatarEl) return;
+    
+    const avatarUrl = await getUserAvatar(user.id);
+    if (avatarUrl) {
+        avatarEl.innerHTML = `<img src="${avatarUrl}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">`;
+    } else {
+        avatarEl.textContent = '👤';
     }
 }
 
