@@ -37,10 +37,18 @@ const sendRatingButton = $("sendRatingButton");
 
 
 // ============ ПОДКЛЮЧЕНИЕ К SUPABASE ============
-const SUPABASE_URL = 'https://sqjtrcqumszdrkyzlmsy.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxanRyY3F1bXN6ZHJreXpsbXN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0ODU2MTIsImV4cCI6MjEwMzA2MTYxMn0.0P7GL1JXfzf3dIsSPj6HnKNzg8ssEN9MRk2dhLSmr2Q';
-
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Используем глобальный supabaseClient из основного скрипта
+// Если его нет - создаём (для автономной работы)
+if (typeof supabaseClient === 'undefined' && typeof window.supabaseClient === 'undefined') {
+    const SUPABASE_URL = 'https://sqjtrcqumszdrkyzlmsy.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxanRyY3F1bXN6ZHJreXpsbXN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0ODU2MTIsImV4cCI6MjEwMzA2MTYxMn0.0P7GL1JXfzf3dIsSPj6HnKNzg8ssEN9MRk2dhLSmr2Q';
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.supabaseClient = supabaseClient;
+}
+// Если есть глобальный - используем его
+else if (typeof window.supabaseClient !== 'undefined') {
+    supabaseClient = window.supabaseClient;
+}
 
 // ============ ФУНКЦИИ РАБОТЫ С БД ============
 
@@ -94,7 +102,7 @@ async function uploadLoveImage(name) {
         console.log('📤 Загрузка картинки...');
         
         // Загружаем love.png из папки проекта
-        const response = await fetch('love.png');
+        const response = await fetch('firstpage/love.png');
         if (!response.ok) {
             throw new Error('Не удалось загрузить love.png');
         }
@@ -151,10 +159,10 @@ function setPlayIcon(isPlaying) {
     const playIcon = $("playIcon");
     if (!playIcon) return;
     if (isPlaying) {
-        playIcon.src = "pause.png";
+        playIcon.src = "firstpage/pause.png";
         playIcon.alt = "Pause";
     } else {
-        playIcon.src = "play.png";
+        playIcon.src = "firstpage/play.png";
         playIcon.alt = "Play";
     }
 }
