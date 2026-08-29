@@ -12,28 +12,31 @@ const TELEGRAM_BOT_TOKEN = '8738300634:AAEpt28j3rvGyqibMI8yPWFZLJCVhxEi0lM';
 async function getUserAvatar(userId) {
     if (!userId) return null;
     
+    // Если это mock-пользователь — не пытаемся загрузить аватар
+    if (userId === 123456789 || userId === 987654321) {
+        console.log('ℹ️ Mock-пользователь, пропускаем загрузку аватара');
+        return null;
+    }
+    
     try {
-        // Проверяем, есть ли аватар в кеше (чтобы не делать лишние запросы)
+        // Проверяем кеш
         const cached = localStorage.getItem(`avatar_${userId}`);
         if (cached) {
             const { url, timestamp } = JSON.parse(cached);
-            // Кеш на 1 час
             if (Date.now() - timestamp < 3600000) {
                 return url;
             }
         }
         
-        // Запрашиваем фото профиля у Telegram
         const response = await fetch(
             `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUserProfilePhotos?user_id=${userId}&limit=1`
         );
         const data = await response.json();
         
         if (data.ok && data.result && data.result.total_count > 0) {
-            const photo = data.result.photos[0][0]; // Берём самую маленькую фотку
+            const photo = data.result.photos[0][0];
             const fileId = photo.file_id;
             
-            // Получаем путь к файлу
             const fileResponse = await fetch(
                 `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getFile?file_id=${fileId}`
             );
@@ -42,7 +45,6 @@ async function getUserAvatar(userId) {
             if (fileData.ok) {
                 const avatarUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${fileData.result.file_path}`;
                 
-                // Сохраняем в кеш
                 localStorage.setItem(`avatar_${userId}`, JSON.stringify({
                     url: avatarUrl,
                     timestamp: Date.now()
@@ -82,7 +84,6 @@ async function loadMyTracks() {
         
         console.log('✅ Загружено проектов:', data?.length || 0);
         
-        // Обновляем счётчики
         if (countEl) countEl.textContent = data?.length || 0;
         if (statTracks) statTracks.textContent = data?.length || 0;
         
@@ -104,9 +105,8 @@ async function loadMyTracks() {
             item.className = 'my-track-item';
             
             const coverUrl = track.cover_url || 'firstpage/cover.png';
-            
-            // Определяем, может ли пользователь редактировать/удалять
             const isOwner = track.owner_id === tgUserId;
+            const isAdmin = currentUserPermissions.is_admin === true;
             
             item.innerHTML = `
                 <img src="${coverUrl}" alt="${track.title}" class="my-track-cover" 
@@ -117,14 +117,13 @@ async function loadMyTracks() {
                 </div>
                 <div class="my-track-actions">
                     <button class="my-track-btn my-track-btn-play" data-track-id="${track.id}">▶</button>
-                    ${isOwner ? `
+                    ${(isOwner || isAdmin) ? `
                         <button class="my-track-btn my-track-btn-edit" data-track-id="${track.id}">✎</button>
                         <button class="my-track-btn my-track-btn-delete" data-track-id="${track.id}">✕</button>
                     ` : ''}
                 </div>
             `;
             
-            // Кнопка Play
             const playBtn = item.querySelector('.my-track-btn-play');
             if (playBtn) {
                 playBtn.addEventListener('click', (e) => {
@@ -133,7 +132,6 @@ async function loadMyTracks() {
                 });
             }
             
-            // Кнопка Редактировать
             const editBtn = item.querySelector('.my-track-btn-edit');
             if (editBtn) {
                 editBtn.addEventListener('click', (e) => {
@@ -142,7 +140,6 @@ async function loadMyTracks() {
                 });
             }
             
-            // Кнопка Удалить
             const deleteBtn = item.querySelector('.my-track-btn-delete');
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', (e) => {
@@ -151,7 +148,6 @@ async function loadMyTracks() {
                 });
             }
             
-            // Клик по всей карточке — открыть трек
             item.addEventListener('click', () => {
                 openTrackPage(track);
             });
@@ -169,7 +165,6 @@ async function loadMyTracks() {
 // ОБНОВЛЕНИЕ UI С АВАТАРОМ
 // ============================================================
 
-// Эту функцию нужно вызвать из auth.js после получения пользователя
 async function updateProfileAvatar(user) {
     if (!user || !user.id) return;
     
@@ -180,7 +175,15 @@ async function updateProfileAvatar(user) {
     if (avatarUrl) {
         avatarEl.innerHTML = `<img src="${avatarUrl}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">`;
     } else {
-        avatarEl.textContent = '👤';
+        // Показываем инициалы
+        const firstName = user.first_name || '';
+        const lastName = user.last_name || '';
+        const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || '👤';
+        avatarEl.textContent = initials;
+        avatarEl.style.fontSize = '32px';
+        avatarEl.style.display = 'flex';
+        avatarEl.style.alignItems = 'center';
+        avatarEl.style.justifyContent = 'center';
     }
 }
 
@@ -195,14 +198,16 @@ async function deleteTrack(track) {
         console.log('🗑️ Удаление трека:', track.id);
         console.log('👤 Текущий пользователь:', tgUserId);
         console.log('👤 Владелец трека:', track.owner_id);
+        console.log('👑 Админ:', currentUserPermissions.is_admin);
         
-        // Проверяем, что пользователь — владелец
-        if (track.owner_id !== tgUserId) {
-            alert('❌ Вы не можете удалить этот трек!');
+        const isOwner = track.owner_id === tgUserId;
+        const isAdmin = currentUserPermissions.is_admin === true;
+        
+        if (!isOwner && !isAdmin) {
+            alert('❌ У вас нет прав на удаление этого трека!');
             return;
         }
         
-        // Удаляем из БД
         const { error } = await supabaseClient
             .from('tracks')
             .delete()
@@ -216,9 +221,7 @@ async function deleteTrack(track) {
         
         console.log('✅ Трек удалён из БД');
         
-        // Удаляем файлы из Storage (опционально)
         try {
-            // Удаляем аудио
             if (track.audio_url) {
                 const audioPath = track.audio_url.split('/').pop();
                 await supabaseClient.storage
@@ -227,7 +230,6 @@ async function deleteTrack(track) {
                 console.log('✅ Аудио удалено');
             }
             
-            // Удаляем обложку
             if (track.cover_url) {
                 const coverPath = track.cover_url.split('/').pop();
                 await supabaseClient.storage
@@ -239,11 +241,9 @@ async function deleteTrack(track) {
             console.warn('⚠️ Не удалось удалить файлы:', e);
         }
         
-        // Обновляем списки
         await loadMyTracks();
         await loadTracksToHome();
         
-        // Если трек был открыт в плеере — закрываем
         if (currentTrack && currentTrack.id === track.id) {
             navigateTo('home');
         }
@@ -259,7 +259,6 @@ async function deleteTrack(track) {
 // ============================================================
 
 function openEditModal(track) {
-    // Создаём модальное окно
     const modal = document.createElement('div');
     modal.className = 'edit-modal-overlay';
     modal.id = 'editModal';
@@ -304,7 +303,6 @@ function openEditModal(track) {
     document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
     
-    // Закрытие
     const closeModal = () => {
         modal.remove();
         document.body.style.overflow = '';
@@ -316,7 +314,6 @@ function openEditModal(track) {
         if (e.target === modal) closeModal();
     });
     
-    // Сохранение
     document.getElementById('editSave').addEventListener('click', async () => {
         const title = document.getElementById('editTitle').value.trim();
         const artist = document.getElementById('editArtist').value.trim();
@@ -336,7 +333,6 @@ function openEditModal(track) {
                 lyrics: lyrics
             };
             
-            // Загружаем новую обложку если есть
             if (coverFile) {
                 const coverExt = coverFile.name.split('.').pop();
                 const coverFileName = `cover_${Date.now()}_${tgUserId}.${coverExt}`;
@@ -355,7 +351,6 @@ function openEditModal(track) {
                 }
             }
             
-            // Загружаем новое аудио если есть
             if (audioFile) {
                 const audioExt = audioFile.name.split('.').pop();
                 const audioFileName = `track_${Date.now()}_${tgUserId}.${audioExt}`;
@@ -374,7 +369,6 @@ function openEditModal(track) {
                 }
             }
             
-            // Обновляем в БД
             const { error } = await supabaseClient
                 .from('tracks')
                 .update(updates)
@@ -386,11 +380,9 @@ function openEditModal(track) {
             console.log('✅ Трек обновлён');
             closeModal();
             
-            // Обновляем списки
             await loadMyTracks();
             await loadTracksToHome();
             
-            // Если трек сейчас открыт — обновляем страницу
             if (currentTrack && currentTrack.id === track.id) {
                 openTrackPage(track);
             }
@@ -402,7 +394,7 @@ function openEditModal(track) {
     });
 }
 
-// Добавляем стили для модального окна (временно в JS)
+// Добавляем стили для модального окна
 const editModalStyles = document.createElement('style');
 editModalStyles.textContent = `
     .edit-modal-overlay {

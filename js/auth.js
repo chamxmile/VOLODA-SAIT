@@ -10,6 +10,22 @@ let currentUserPermissions = {
     is_blocked: false
 };
 
+// ============================================================
+// БЕЛЫЙ СПИСОК ПОЛЬЗОВАТЕЛЕЙ (замени на реальные ID)
+// ============================================================
+
+const WHITE_LIST = [
+    { id: 1418934373, name: 'chamxmile', can_upload: true, is_admin: true },
+    { id: 1767821012, name: 'nedoljem100', can_upload: true, is_admin: false },  // ← реальный ID
+    { id: 1072744327, name: 'Vzon', can_upload: true, is_admin: false },   // ← реальный ID
+    { id: 1230942625, name: 'Senjo', can_upload: true, is_admin: false },
+    { id: 1680897170, name: 'YBLYDOK', can_upload: true, is_admin: false },    // ← реальный ID
+];
+
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ TELEGRAM
+// ============================================================
+
 function initTelegram() {
     try {
         if (window.Telegram && window.Telegram.WebApp) {
@@ -23,6 +39,7 @@ function initTelegram() {
                 return tgUser;
             }
         }
+        // Mock-пользователь для локальной разработки
         const mockUser = {
             id: 123456789,
             first_name: 'Александр',
@@ -40,6 +57,10 @@ function initTelegram() {
     }
 }
 
+// ============================================================
+// ПОЛУЧЕНИЕ ИЛИ СОЗДАНИЕ ПОЛЬЗОВАТЕЛЯ
+// ============================================================
+
 async function getOrCreateUser(user) {
     if (!user || !user.id) {
         console.warn('⚠️ Нет пользователя');
@@ -48,6 +69,9 @@ async function getOrCreateUser(user) {
     
     try {
         console.log('🔍 Ищем пользователя с ID:', user.id);
+        
+        // Проверяем белый список
+        const whitelistEntry = WHITE_LIST.find(u => u.id === user.id);
         
         const { data, error } = await supabaseClient
             .from('users')
@@ -63,8 +87,8 @@ async function getOrCreateUser(user) {
                 first_name: user.first_name || 'Гость',
                 last_name: user.last_name || '',
                 username: user.username || null,
-                can_upload: false,
-                is_admin: false,
+                can_upload: whitelistEntry?.can_upload || false,
+                is_admin: whitelistEntry?.is_admin || false,
                 is_blocked: false
             };
             
@@ -92,6 +116,29 @@ async function getOrCreateUser(user) {
         
         console.log('✅ Пользователь найден:', data);
         
+        // Если пользователь в белом списке, но в БД другие права — обновляем
+        if (whitelistEntry) {
+            const needsUpdate = 
+                data.can_upload !== whitelistEntry.can_upload ||
+                data.is_admin !== whitelistEntry.is_admin;
+            
+            if (needsUpdate) {
+                console.log('🔄 Обновляем права пользователя из белого списка...');
+                const { error: updateError } = await supabaseClient
+                    .from('users')
+                    .update({
+                        can_upload: whitelistEntry.can_upload,
+                        is_admin: whitelistEntry.is_admin
+                    })
+                    .eq('telegram_user_id', user.id);
+                
+                if (!updateError) {
+                    data.can_upload = whitelistEntry.can_upload;
+                    data.is_admin = whitelistEntry.is_admin;
+                }
+            }
+        }
+        
         currentUserPermissions = {
             can_upload: data.can_upload || false,
             is_admin: data.is_admin || false,
@@ -105,6 +152,10 @@ async function getOrCreateUser(user) {
         return null;
     }
 }
+
+// ============================================================
+// ОБНОВЛЕНИЕ UI
+// ============================================================
 
 function updateUserUI(user) {
     if (!user) return;
@@ -165,7 +216,7 @@ function updateUploadButton(hasPermission) {
 }
 
 // ============================================================
-// ОБНОВЛЕНИЕ АВАТАРА В ПРОФИЛЕ
+// ОБНОВЛЕНИЕ АВАТАРА
 // ============================================================
 
 async function updateProfileAvatar(user) {
@@ -187,6 +238,13 @@ async function updateProfileAvatar(user) {
         }
     }
     
-    // Если аватар не загрузился — показываем эмодзи
-    avatarEl.textContent = '👤';
+    // Если аватар не загрузился — показываем инициалы
+    const firstName = user.first_name || '';
+    const lastName = user.last_name || '';
+    const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || '👤';
+    avatarEl.textContent = initials;
+    avatarEl.style.fontSize = '32px';
+    avatarEl.style.display = 'flex';
+    avatarEl.style.alignItems = 'center';
+    avatarEl.style.justifyContent = 'center';
 }
