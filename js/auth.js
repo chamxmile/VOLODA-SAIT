@@ -234,7 +234,7 @@ function updateUserUI(user) {
     const greeting = document.getElementById('greeting');
     if (greeting) {
         const name = user.first_name || 'Гость';
-        greeting.textContent = `Добрый день, ${name}`;
+        greeting.textContent = name;
     }
     
     const profileName = document.getElementById('profileName');
