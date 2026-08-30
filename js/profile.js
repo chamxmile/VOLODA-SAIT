@@ -335,6 +335,36 @@ async function loadArtistsForEditFeats() {
 }
 
 // ============================================================
+// СТИЛИ ДЛЯ КНОПОК УДАЛЕНИЯ ФАЙЛОВ (добавим в конец файла)
+// ============================================================
+
+const deleteFileStyles = document.createElement('style');
+deleteFileStyles.textContent = `
+    .file-remove-btn {
+        background: #ff4444;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 4px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        margin-left: 10px;
+        transition: background 0.2s;
+        flex-shrink: 0;
+    }
+    .file-remove-btn:hover {
+        background: #cc0000;
+    }
+    .file-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+`;
+document.head.appendChild(deleteFileStyles);
+
+// ============================================================
 // РЕДАКТИРОВАНИЕ ТРЕКА (МОДАЛЬНОЕ ОКНО С ФИТАМИ)
 // ============================================================
 
@@ -343,6 +373,11 @@ function openEditModal(track) {
     console.log('🔍 track.feat_ids:', track.feat_ids);
     
     let selectedEditFeats = [];
+    
+    // 🔥 Флаг, была ли удалена обложка
+    let coverDeleted = false;
+    // 🔥 Флаг, был ли удалён аудиофайл
+    let audioDeleted = false;
     
     async function loadEditFeatNames() {
         const featIds = track.feat_ids || [];
@@ -405,6 +440,10 @@ function openEditModal(track) {
         modal.className = 'edit-modal-overlay';
         modal.id = 'editModal';
         
+        // 🔥 Определяем, есть ли обложка и аудио у трека
+        const hasCover = track.cover_url && track.cover_url.length > 0;
+        const hasAudio = track.audio_url && track.audio_url.length > 0;
+        
         modal.innerHTML = `
             <div class="edit-modal">
                 <div class="edit-modal-header">
@@ -443,19 +482,33 @@ function openEditModal(track) {
                     </div>
                     <div class="form-group">
                         <label>Обложка</label>
-                        <div class="file-input-wrapper">
-                            <input type="file" accept=".jpg,.jpeg,.png,.webp" id="editCover">
-                            <span class="file-name" id="editCoverName">${track.cover_url ? '✅ Обложка есть' : 'Файл не выбран'}</span>
+                        <div class="file-row">
+                            <div class="file-input-wrapper" style="flex:1;">
+                                <input type="file" accept=".jpg,.jpeg,.png,.webp" id="editCover">
+                                <span class="file-name" id="editCoverName">${hasCover ? '✅ Обложка есть' : 'Файл не выбран'}</span>
+                            </div>
+                            ${hasCover ? `
+                                <button type="button" class="file-remove-btn" id="editCoverRemoveBtn">🗑️ Удалить</button>
+                            ` : ''}
                         </div>
-                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Выберите новый файл, чтобы заменить текущую обложку</p>
+                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+                            Выберите новый файл, чтобы заменить текущую обложку, или нажмите «Удалить»
+                        </p>
                     </div>
                     <div class="form-group">
                         <label>Аудиофайл</label>
-                        <div class="file-input-wrapper">
-                            <input type="file" accept=".mp3,.wav,.m4a,.flac" id="editAudio">
-                            <span class="file-name" id="editAudioName">${track.audio_url ? '✅ Аудио есть' : 'Файл не выбран'}</span>
+                        <div class="file-row">
+                            <div class="file-input-wrapper" style="flex:1;">
+                                <input type="file" accept=".mp3,.wav,.m4a,.flac" id="editAudio">
+                                <span class="file-name" id="editAudioName">${hasAudio ? '✅ Аудио есть' : 'Файл не выбран'}</span>
+                            </div>
+                            ${hasAudio ? `
+                                <button type="button" class="file-remove-btn" id="editAudioRemoveBtn">🗑️ Удалить</button>
+                            ` : ''}
                         </div>
-                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Выберите новый файл, чтобы заменить текущее аудио</p>
+                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+                            Выберите новый файл, чтобы заменить текущее аудио, или нажмите «Удалить»
+                        </p>
                     </div>
                 </div>
                 <div class="edit-modal-footer">
@@ -472,6 +525,39 @@ function openEditModal(track) {
         loadArtistsForEditFeats();
         
         // ============================================================
+        // 🔥 НОВОЕ: ОБРАБОТЧИКИ УДАЛЕНИЯ ОБЛОЖКИ И АУДИО
+        // ============================================================
+        
+        const coverRemoveBtn = document.getElementById('editCoverRemoveBtn');
+        if (coverRemoveBtn) {
+            coverRemoveBtn.addEventListener('click', () => {
+                if (confirm('Удалить обложку? Трек будет использовать случайную обложку.')) {
+                    coverDeleted = true;
+                    const coverName = document.getElementById('editCoverName');
+                    if (coverName) coverName.textContent = '❌ Обложка удалена';
+                    coverRemoveBtn.style.display = 'none';
+                    // Очищаем input файла, если там что-то было выбрано
+                    const coverInput = document.getElementById('editCover');
+                    if (coverInput) coverInput.value = '';
+                }
+            });
+        }
+        
+        const audioRemoveBtn = document.getElementById('editAudioRemoveBtn');
+        if (audioRemoveBtn) {
+            audioRemoveBtn.addEventListener('click', () => {
+                if (confirm('Удалить аудиофайл? Трек станет недоступным для прослушивания.')) {
+                    audioDeleted = true;
+                    const audioName = document.getElementById('editAudioName');
+                    if (audioName) audioName.textContent = '❌ Аудио удалено';
+                    audioRemoveBtn.style.display = 'none';
+                    const audioInput = document.getElementById('editAudio');
+                    if (audioInput) audioInput.value = '';
+                }
+            });
+        }
+        
+        // ============================================================
         // ОБРАБОТЧИКИ ВЫБОРА ФАЙЛОВ (ПОСЛЕ СОЗДАНИЯ МОДАЛКИ)
         // ============================================================
         
@@ -483,9 +569,14 @@ function openEditModal(track) {
             editCoverInput.addEventListener('change', function() {
                 const file = this.files[0];
                 if (file) {
+                    // Если выбрали новый файл, снимаем флаг удаления
+                    coverDeleted = false;
                     editCoverName.textContent = `📎 ${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
+                    // Показываем кнопку удаления, если она была скрыта
+                    const removeBtn = document.getElementById('editCoverRemoveBtn');
+                    if (removeBtn) removeBtn.style.display = '';
                 } else {
-                    editCoverName.textContent = track.cover_url ? '✅ Обложка есть' : 'Файл не выбран';
+                    editCoverName.textContent = track.cover_url && !coverDeleted ? '✅ Обложка есть' : 'Файл не выбран';
                 }
             });
         }
@@ -498,9 +589,12 @@ function openEditModal(track) {
             editAudioInput.addEventListener('change', function() {
                 const file = this.files[0];
                 if (file) {
+                    audioDeleted = false;
                     editAudioName.textContent = `📎 ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+                    const removeBtn = document.getElementById('editAudioRemoveBtn');
+                    if (removeBtn) removeBtn.style.display = '';
                 } else {
-                    editAudioName.textContent = track.audio_url ? '✅ Аудио есть' : 'Файл не выбран';
+                    editAudioName.textContent = track.audio_url && !audioDeleted ? '✅ Аудио есть' : 'Файл не выбран';
                 }
             });
         }
@@ -615,6 +709,10 @@ function openEditModal(track) {
             });
         }
         
+        // ============================================================
+        // 🔥 ОБНОВЛЕННЫЙ СОХРАНЕНИЕ С УЧЁТОМ УДАЛЕНИЯ ФАЙЛОВ
+        // ============================================================
+        
         document.getElementById('editSave').addEventListener('click', async () => {
             const title = document.getElementById('editTitle').value.trim();
             const lyrics = document.getElementById('editLyrics').value.trim();
@@ -636,8 +734,14 @@ function openEditModal(track) {
                 };
                 
                 console.log('🔍 Отправляем обновление:', updates);
+                console.log('🔍 coverDeleted:', coverDeleted, 'audioDeleted:', audioDeleted);
                 
-                if (coverFile) {
+                // 🔥 Обработка обложки
+                if (coverDeleted) {
+                    // Если обложка удалена — устанавливаем null
+                    updates.cover_url = null;
+                } else if (coverFile) {
+                    // Если выбран новый файл — загружаем
                     const coverExt = coverFile.name.split('.').pop();
                     const coverFileName = `cover_${Date.now()}_${tgUserId}.${coverExt}`;
                     const { data: coverData, error: coverError } = await supabaseClient.storage
@@ -654,8 +758,14 @@ function openEditModal(track) {
                         updates.cover_url = coverUrlData.publicUrl;
                     }
                 }
+                // Если coverDeleted === false и coverFile не выбран — оставляем старую обложку (ничего не делаем)
                 
-                if (audioFile) {
+                // 🔥 Обработка аудио
+                if (audioDeleted) {
+                    // Если аудио удалено — устанавливаем null
+                    updates.audio_url = null;
+                } else if (audioFile) {
+                    // Если выбран новый файл — загружаем
                     const audioExt = audioFile.name.split('.').pop();
                     const audioFileName = `track_${Date.now()}_${tgUserId}.${audioExt}`;
                     const { data: audioData, error: audioError } = await supabaseClient.storage
@@ -672,6 +782,9 @@ function openEditModal(track) {
                         updates.audio_url = audioUrlData.publicUrl;
                     }
                 }
+                // Если audioDeleted === false и audioFile не выбран — оставляем старое аудио
+                
+                console.log('🔍 Итоговые updates:', updates);
                 
                 const { error } = await supabaseClient
                     .from('tracks')
@@ -699,7 +812,10 @@ function openEditModal(track) {
     });
 }
 
-// Добавляем стили для модального окна
+// ============================================================
+// СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА (оставляем как было)
+// ============================================================
+
 const editModalStyles = document.createElement('style');
 editModalStyles.textContent = `
     .edit-modal-overlay {

@@ -305,23 +305,36 @@ function initTrackPlayer() {
         });
     }
 
+    // ============================================================
+    // 🔥 ОБНОВЛЕННАЯ КНОПКА «ПОДЕЛИТЬСЯ»
+    // ============================================================
+    
     if (shareBtn) {
         shareBtn.addEventListener('click', () => {
             if (!currentTrack) return;
             
+            // 🔥 Используем startapp вместо start для Deep Link в Mini App
             const botUsername = 'demkawqbot';
-            const shareUrl = `https://t.me/${botUsername}?start=track_${currentTrack.id}`;
-            const shareText = `🎵 ${currentTrack.title} — ${currentTrack.artist_name}\nСлушай на DB Sound!\n${shareUrl}`;
+            // Формируем ссылку для Mini App
+            const shareUrl = `https://t.me/${botUsername}/dbsound?startapp=track_${currentTrack.id}`;
+            
+            // Формируем текст с обложкой в ссылке (Telegram автоматически покажет превью)
+            const shareText = `🎵 ${currentTrack.title} — ${currentTrack.artist_name || 'Неизвестный исполнитель'}\nСлушай на DB Sound!\n${shareUrl}`;
             
             if (navigator.share) {
                 navigator.share({
                     title: currentTrack.title,
                     text: shareText,
+                    // 🔥 Пробуем добавить URL для превью
+                    url: shareUrl,
                 }).catch(() => {});
             } else {
                 navigator.clipboard.writeText(shareText).then(() => {
-                    alert('Ссылка скопирована!');
-                }).catch(() => {});
+                    alert('🔗 Ссылка скопирована!\nПоделитесь ей с друзьями, чтобы они могли открыть трек в мини-аппе.');
+                }).catch(() => {
+                    // Fallback: показываем ссылку
+                    prompt('Скопируйте ссылку:', shareText);
+                });
             }
         });
     }
@@ -450,11 +463,28 @@ function openTrackPage(track) {
                 coverBg.style.backgroundImage = `url(${cover.src})`;
             }
         };
+        // 🔥 Если обложка не загрузилась — используем дефолтную
+        cover.onerror = () => {
+            cover.src = 'oblozchki/obl1.png';
+            if (coverBg) {
+                coverBg.style.backgroundImage = `url(oblozchki/obl1.png)`;
+            }
+        };
     }
     
     if (audio && track.audio_url) {
         audio.src = track.audio_url;
         audio.load();
+    } else if (audio) {
+        // 🔥 Если аудио нет — показываем сообщение
+        audio.src = '';
+        console.warn('⚠️ У трека нет аудиофайла');
+        // Показываем уведомление пользователю
+        const playBtn = document.getElementById('trackPlayBtn');
+        if (playBtn) {
+            playBtn.style.opacity = '0.5';
+            playBtn.title = 'Аудио недоступно';
+        }
     }
     
     updateMiniPlayer(track);
@@ -469,14 +499,19 @@ function openTrackPage(track) {
         renderTrackComments();
     }, 300);
     
-    setTimeout(() => {
-        if (audio) {
+    // 🔥 Автозапуск только если есть аудио
+    if (audio && track.audio_url) {
+        setTimeout(() => {
             audio.play().catch(e => console.warn('Не удалось автозапустить:', e));
             isTrackPlaying = true;
             updateTrackPlayIcon(true);
             updateMiniPlayerPlayIcon(true);
-        }
-    }, 400);
+        }, 400);
+    } else {
+        // Если аудио нет — показываем иконку паузы в неактивном состоянии
+        updateTrackPlayIcon(false);
+        updateMiniPlayerPlayIcon(false);
+    }
 }
 
 // ============================================================
@@ -551,6 +586,43 @@ function updateMiniPlayerProgress() {
     if (!audio || !bar || !audio.duration) return;
     const percent = (audio.currentTime / audio.duration) * 100;
     bar.style.width = `${percent}%`;
+}
+
+// ============================================================
+// 🔥 ОБРАБОТКА STARTAPP ПАРАМЕТРА (ДЛЯ ГЛУБОКИХ ССЫЛОК)
+// ============================================================
+
+async function handleStartAppParam() {
+    // Проверяем, есть ли параметр startapp в URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const startApp = urlParams.get('startapp');
+    
+    console.log('🔍 startapp параметр:', startApp);
+    
+    if (startApp && startApp.startsWith('track_')) {
+        const trackId = startApp.replace('track_', '');
+        console.log('🎯 Нужно открыть трек с ID:', trackId);
+        
+        try {
+            const { data, error } = await supabaseClient
+                .from('tracks')
+                .select('*')
+                .eq('id', trackId)
+                .single();
+            
+            if (error) throw error;
+            
+            if (data) {
+                console.log('✅ Трек найден, открываем:', data.title);
+                // Ждём загрузку страницы, затем открываем трек
+                setTimeout(() => {
+                    openTrackPage(data);
+                }, 500);
+            }
+        } catch (e) {
+            console.error('❌ Ошибка загрузки трека по startapp:', e);
+        }
+    }
 }
 
 // ============================================================
