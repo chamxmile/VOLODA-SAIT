@@ -50,15 +50,21 @@ else if (typeof window.supabaseClient !== 'undefined') {
     supabaseClient = window.supabaseClient;
 }
 
+// ============ ID ТЕКУЩЕГО ТРЕКА ============
+// Для старой страницы используем фиксированный ID трека "ЕБАННУТАЯ"
+// Замени на реальный ID трека из БД
+const CURRENT_TRACK_ID = '33333333-3333-3333-3333-333333333333'; // ← ID трека "ЕБАННУТАЯ"
+
 // ============ ФУНКЦИИ РАБОТЫ С БД ============
 
-// Загрузка комментариев
+// Загрузка комментариев ДЛЯ КОНКРЕТНОГО ТРЕКА
 async function loadComments() {
     try {
-        console.log('📥 Загрузка комментариев...');
+        console.log('📥 Загрузка комментариев для трека:', CURRENT_TRACK_ID);
         const { data, error } = await supabaseClient
             .from('comments')
             .select('*')
+            .eq('track_id', CURRENT_TRACK_ID)  // ← ТОЛЬКО ДЛЯ ЭТОГО ТРЕКА
             .order('created_at', { ascending: false });
         
         if (error) {
@@ -73,13 +79,19 @@ async function loadComments() {
     }
 }
 
-// Сохранение комментария
+// Сохранение комментария С track_id
 async function saveComment(comment) {
     try {
-        console.log('💾 Сохранение...', comment);
+        // Добавляем track_id к комментарию
+        const commentWithTrack = {
+            ...comment,
+            track_id: 33333333-3333-3333-3333-333333333333  // ← ПРИВЯЗКА К ТРЕКУ
+        };
+        
+        console.log('💾 Сохранение...', commentWithTrack);
         const { data, error } = await supabaseClient
             .from('comments')
-            .insert([comment])
+            .insert([commentWithTrack])
             .select();
         
         if (error) {

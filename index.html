@@ -48,6 +48,13 @@
                 </svg>
                 <span>Профиль</span>
             </button>
+            <!-- ====== КНОПКА АДМИНКИ (только для админа) ====== -->
+            <button class="nav-btn" data-page="admin" id="adminNavBtn" style="display:none;">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                <span>Админ</span>
+            </button>
         </nav>
 
         <!-- ====== СТРАНИЦЫ ====== -->
@@ -181,6 +188,7 @@
                     <div class="track-page-info">
                         <h1 class="track-page-title" id="trackPageTitle">Название трека</h1>
                         <p class="track-page-artist" id="trackPageArtist">Исполнитель</p>
+                        <div id="trackPagePlays" style="font-size: 14px; color: var(--muted); margin-top: 4px;">0 прослушиваний</div>
                     </div>
 
                     <div class="track-page-progress">
@@ -212,6 +220,7 @@
                     </div>
 
                     <div class="track-page-actions">
+                        <button class="track-page-action-btn" id="trackFavoriteBtn">🤍</button>
                         <button class="track-page-action-btn" id="trackLyricsBtn">📝 Текст</button>
                         <button class="track-page-action-btn" id="trackShareBtn">🔗 Поделиться</button>
                     </div>
@@ -264,6 +273,23 @@
                     <div class="form-group">
                         <label>Исполнитель</label>
                         <input type="text" id="trackArtistInput" placeholder="Введите имя исполнителя">
+                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+                            ⚡ Ваше имя будет подставлено автоматически
+                        </p>
+                    </div>
+                    <div class="form-group">
+                        <label>Фиты (соисполнители)</label>
+                        <div id="featsContainer">
+                            <div class="feat-item">
+                                <input type="text" id="featInput" placeholder="Введите имя соисполнителя" list="featList">
+                                <button type="button" id="addFeatBtn" class="add-feat-btn">+</button>
+                            </div>
+                            <div id="featsList" class="feats-list"></div>
+                            <datalist id="featList"></datalist>
+                        </div>
+                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+                            Выберите исполнителя из списка или создайте нового
+                        </p>
                     </div>
                     <div class="form-group">
                         <label>Текст</label>
@@ -275,36 +301,58 @@
             </div>
 
             <!-- ====== СТРАНИЦА PROFILE ====== -->
-<div class="page" id="page-profile" style="display:none;">
-    <div class="page-header">
-        <h1>Профиль</h1>
-    </div>
-    <div class="profile-card">
-        <div class="profile-avatar" id="profileAvatar">👤</div>
-        <div class="profile-name" id="profileName">Гость</div>
-        <div class="profile-username" id="profileUsername"></div>
-        <div class="profile-id" id="profileId">Telegram ID: —</div>
-        <div class="profile-stats">
-            <div class="stat">
-                <span class="stat-number" id="statTracks">0</span>
-                <span class="stat-label">Проектов</span>
+            <div class="page" id="page-profile" style="display:none;">
+                <div class="page-header">
+                    <h1>Профиль</h1>
+                </div>
+                <div class="profile-card">
+                    <div class="profile-avatar" id="profileAvatar">👤</div>
+                    <div class="profile-name" id="profileName">Гость</div>
+                    <div class="profile-username" id="profileUsername"></div>
+                    <div class="profile-id" id="profileId">Telegram ID: —</div>
+                    <div class="profile-stats">
+                        <div class="stat">
+                            <span class="stat-number" id="statTracks">0</span>
+                            <span class="stat-label">Проектов</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-number" id="statPlays">0</span>
+                            <span class="stat-label">Прослушиваний</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="my-tracks-section">
+                    <div class="my-tracks-header">
+                        <h2>Мои проекты</h2>
+                        <span id="myTracksCount">0</span>
+                    </div>
+                    <div id="myTracksList">
+                        <div class="empty-state">Нет загруженных проектов</div>
+                    </div>
+                </div>
             </div>
-            <div class="stat">
-                <span class="stat-number" id="statPlays">0</span>
-                <span class="stat-label">Прослушиваний</span>
+
+            <!-- ====== СТРАНИЦА ADMIN ====== -->
+            <div class="page" id="page-admin" style="display:none;">
+                <div class="page-header">
+                    <h1>Админ-панель</h1>
+                    <p class="greeting" style="color: var(--muted);">Управление пользователями и треками</p>
+                </div>
+                
+                <div class="admin-section">
+                    <h2>👥 Пользователи</h2>
+                    <div id="adminUsersList">
+                        <div class="empty-state">Загрузка пользователей...</div>
+                    </div>
+                </div>
+                
+                <div class="admin-section">
+                    <h2>🎵 Все треки</h2>
+                    <div id="adminTracksList">
+                        <div class="empty-state">Загрузка треков...</div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-    <div class="my-tracks-section">
-        <div class="my-tracks-header">
-            <h2>Мои проекты</h2>
-            <span id="myTracksCount">0</span>
-        </div>
-        <div id="myTracksList">
-            <div class="empty-state">Нет загруженных проектов</div>
-        </div>
-    </div>
-</div>
 
         </div>
 
@@ -333,14 +381,15 @@
     <audio id="trackAudio" preload="metadata"></audio>
 
     <!-- ====== ПОДКЛЮЧАЕМ JS ====== -->
-<!-- СТАРЫЙ JS (из папки firstpage) -->
-<script src="firstpage/script.js"></script>
+    <!-- СТАРЫЙ JS (из папки firstpage) -->
+    <script src="firstpage/script.js"></script>
 
-<!-- НОВЫЙ JS -->
-<script src="js/auth.js"></script>
-<script src="js/track.js"></script>
-<script src="js/upload.js"></script>
-<script src="js/profile.js"></script>   <!-- ← ДОБАВИТЬ -->
-<script src="script.js"></script>
+    <!-- НОВЫЙ JS -->
+    <script src="js/auth.js"></script>
+    <script src="js/track.js"></script>
+    <script src="js/upload.js"></script>
+    <script src="js/profile.js"></script>
+    <script src="js/admin.js"></script>
+    <script src="script.js"></script>
 </body> 
 </html>

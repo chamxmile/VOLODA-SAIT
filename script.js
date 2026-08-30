@@ -55,8 +55,46 @@ function navigateTo(page) {
 // Функция loadTracksToHome() определена в js/upload.js
 
 // ============================================================
+// ОТКРЫТИЕ ТРЕКА ПО ID (DEEP LINK)
+// ============================================================
+
+async function openTrackById(trackId) {
+    try {
+        console.log('🔗 Deep link: открываем трек', trackId);
+        
+        // Ищем трек в БД по ID
+        const { data, error } = await supabaseClient
+            .from('tracks')
+            .select('*')
+            .eq('id', trackId)
+            .single();
+        
+        if (error) {
+            console.warn('⚠️ Трек не найден:', error);
+            navigateTo('home');
+            await loadTracksToHome();
+            return;
+        }
+        
+        if (data) {
+            // Открываем страницу трека
+            openTrackPage(data);
+        } else {
+            console.warn('⚠️ Трек не найден');
+            navigateTo('home');
+            await loadTracksToHome();
+        }
+    } catch (e) {
+        console.error('❌ Ошибка загрузки трека:', e);
+        navigateTo('home');
+        await loadTracksToHome();
+    }
+}
+
+// ============================================================
 // ИНИЦИАЛИЗАЦИЯ
 // ============================================================
+
 async function initApp() {
     console.log('🚀 Инициализация DB Sound...');
     
@@ -65,26 +103,60 @@ async function initApp() {
     const user = initTelegram();
     
     let dbUser = null;
-    if (user && user.id) {
+    if (user && user.id && user.id !== 0 && user.id !== 123456789) {
         dbUser = await getOrCreateUser(user);
+    } else {
+        console.log('👤 Гость (пользователь не определён)');
+        // Сбрасываем права
+        currentUserPermissions = {
+            can_upload: false,
+            is_admin: false,
+            is_blocked: false
+        };
     }
     
     if (user) {
         updateUserUI(user);
-        // 🔥 ДОБАВЬ ЭТУ СТРОЧКУ:
         if (typeof updateProfileAvatar === 'function') {
             await updateProfileAvatar(user);
         }
     }
     
+    // 🔥 Обновляем кнопку загрузки (с проверкой на гостя)
+    updateUploadButton(currentUserPermissions.can_upload);
+    
     if (dbUser) updateUploadButton(currentUserPermissions.can_upload);
     
-    navigateTo('home');
-    await loadTracksToHome();
-    initTrackPlayer();
+    // 🔥 ОБРАБОТКА DEEP LINK
+    // Проверяем параметры в URL (для Telegram Mini App)
+    let trackId = null;
     
-    if (typeof loadMyTracks === 'function') {
-        await loadMyTracks();
+    // Пробуем получить параметры из разных источников
+    if (window.Telegram && window.Telegram.WebApp) {
+        // Для Telegram Mini App
+        const tg = window.Telegram.WebApp;
+        if (tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+            trackId = tg.initDataUnsafe.start_param;
+        }
+    }
+    
+    // Если не нашли через Telegram, пробуем через URL
+    if (!trackId) {
+        const urlParams = new URLSearchParams(window.location.search);
+        trackId = urlParams.get('track_id') || urlParams.get('startapp');
+    }
+    
+    if (trackId) {
+        console.log('🔗 Deep link detected:', trackId);
+        await openTrackById(trackId);
+    } else {
+        navigateTo('home');
+        await loadTracksToHome();
+        initTrackPlayer();
+        
+        if (typeof loadMyTracks === 'function') {
+            await loadMyTracks();
+        }
     }
     
     console.log('✅ DB Sound инициализирован');

@@ -16,10 +16,10 @@ let currentUserPermissions = {
 
 const WHITE_LIST = [
     { id: 1418934373, name: 'chamxmile', can_upload: true, is_admin: true },
-    { id: 1767821012, name: 'nedoljem100', can_upload: true, is_admin: false },  // ← реальный ID
-    { id: 1072744327, name: 'Vzon', can_upload: true, is_admin: false },   // ← реальный ID
+    { id: 1767821012, name: 'nedoljem100', can_upload: true, is_admin: false },
+    { id: 1072744327, name: 'Vzon', can_upload: true, is_admin: false },
     { id: 1230942625, name: 'Senjo', can_upload: true, is_admin: false },
-    { id: 1680897170, name: 'YBLYDOK', can_upload: true, is_admin: false },    // ← реальный ID
+    { id: 1680897170, name: 'YBLYDOK', can_upload: true, is_admin: false },
 ];
 
 // ============================================================
@@ -39,10 +39,8 @@ function initTelegram() {
                 return tgUser;
             }
             
-            // ⚠️ НА ПК: пробуем получить пользователя через tg.initData
             if (tg.initData) {
                 console.log('ℹ️ Пользователь не определён, но initData есть:', tg.initData);
-                // Пробуем распарсить initData
                 const params = new URLSearchParams(tg.initData);
                 const userData = params.get('user');
                 if (userData) {
@@ -59,7 +57,6 @@ function initTelegram() {
             }
         }
         
-        // Если пользователь не определён — показываем fallback
         console.warn('⚠️ Пользователь не определён, используем fallback');
         const fallbackUser = {
             id: 0,
@@ -79,6 +76,53 @@ function initTelegram() {
 }
 
 // ============================================================
+// СОЗДАНИЕ ИСПОЛНИТЕЛЯ ДЛЯ ПОЛЬЗОВАТЕЛЯ
+// ============================================================
+
+async function createArtist(user) {
+    if (!user || !user.id) return null;
+    
+    // Не создаём для гостей
+    if (user.id === 0 || user.id === 123456789) return null;
+    
+    try {
+        // Проверяем, есть ли уже исполнитель
+        const { data, error } = await supabaseClient
+            .from('artists')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle();
+        
+        if (data) {
+            console.log('✅ Исполнитель уже существует:', data);
+            return data;
+        }
+        
+        // Создаём нового исполнителя
+        const newArtist = {
+            user_id: user.id,
+            name: user.first_name || 'Гость',
+            username: user.username || null
+        };
+        
+        const { data: created, error: createError } = await supabaseClient
+            .from('artists')
+            .insert([newArtist])
+            .select()
+            .single();
+        
+        if (createError) throw createError;
+        
+        console.log('✅ Исполнитель создан:', created);
+        return created;
+        
+    } catch (e) {
+        console.error('❌ Ошибка создания исполнителя:', e);
+        return null;
+    }
+}
+
+// ============================================================
 // ПОЛУЧЕНИЕ ИЛИ СОЗДАНИЕ ПОЛЬЗОВАТЕЛЯ
 // ============================================================
 
@@ -91,7 +135,6 @@ async function getOrCreateUser(user) {
     try {
         console.log('🔍 Ищем пользователя с ID:', user.id);
         
-        // Проверяем белый список
         const whitelistEntry = WHITE_LIST.find(u => u.id === user.id);
         
         const { data, error } = await supabaseClient
@@ -132,12 +175,14 @@ async function getOrCreateUser(user) {
                 is_blocked: created.is_blocked || false
             };
             
+            // 🔥 СОЗДАЁМ ИСПОЛНИТЕЛЯ ДЛЯ НОВОГО ПОЛЬЗОВАТЕЛЯ
+            await createArtist(user);
+            
             return created;
         }
         
         console.log('✅ Пользователь найден:', data);
         
-        // Если пользователь в белом списке, но в БД другие права — обновляем
         if (whitelistEntry) {
             const needsUpdate = 
                 data.can_upload !== whitelistEntry.can_upload ||
@@ -165,6 +210,9 @@ async function getOrCreateUser(user) {
             is_admin: data.is_admin || false,
             is_blocked: data.is_blocked || false
         };
+        
+        // 🔥 ПРОВЕРЯЕМ И СОЗДАЁМ ИСПОЛНИТЕЛЯ ДЛЯ СУЩЕСТВУЮЩЕГО ПОЛЬЗОВАТЕЛЯ
+        await createArtist(user);
         
         return data;
         
@@ -227,7 +275,9 @@ function updateUploadButton(hasPermission) {
     const uploadBtn = document.getElementById('uploadNavBtn');
     if (!uploadBtn) return;
     
-    if (hasPermission) {
+    const isAuthenticated = tgUserId && tgUserId !== 0 && tgUserId !== 123456789;
+    
+    if (hasPermission && isAuthenticated) {
         uploadBtn.style.display = 'flex';
         console.log('🔓 Кнопка загрузки ДОСТУПНА');
     } else {
@@ -246,7 +296,6 @@ async function updateProfileAvatar(user) {
     const avatarEl = document.getElementById('profileAvatar');
     if (!avatarEl) return;
     
-    // Функция getUserAvatar определена в profile.js
     if (typeof getUserAvatar === 'function') {
         try {
             const avatarUrl = await getUserAvatar(user.id);
@@ -259,7 +308,6 @@ async function updateProfileAvatar(user) {
         }
     }
     
-    // Если аватар не загрузился — показываем инициалы
     const firstName = user.first_name || '';
     const lastName = user.last_name || '';
     const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || '👤';

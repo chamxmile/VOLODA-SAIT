@@ -13,6 +13,172 @@ function formatTime(seconds) {
     return `${minutes}:${String(secs).padStart(2, "0")}`;
 }
 
+// ============================================================
+// УВЕЛИЧЕНИЕ СЧЁТЧИКА ПРОСЛУШИВАНИЙ
+// ============================================================
+
+async function updateTrackPlays(trackId) {
+    if (!trackId) return;
+    
+    try {
+        const lastPlay = localStorage.getItem(`play_${trackId}`);
+        if (lastPlay && Date.now() - parseInt(lastPlay) < 5000) {
+            return;
+        }
+        
+        const { data, error } = await supabaseClient
+            .from('tracks')
+            .select('plays')
+            .eq('id', trackId)
+            .single();
+        
+        if (error) throw error;
+        
+        const currentPlays = (data?.plays || 0) + 1;
+        
+        const { error: updateError } = await supabaseClient
+            .from('tracks')
+            .update({ plays: currentPlays })
+            .eq('id', trackId);
+        
+        if (updateError) throw updateError;
+        
+        localStorage.setItem(`play_${trackId}`, Date.now().toString());
+        console.log('📊 Счётчик прослушиваний увеличен для трека:', trackId, '→', currentPlays);
+        
+        updateTrackPlaysDisplay(trackId, currentPlays);
+        
+    } catch (e) {
+        console.warn('⚠️ Не удалось обновить счётчик:', e);
+    }
+}
+
+function updateTrackPlaysDisplay(trackId, plays) {
+    const playsEl = document.getElementById('trackPagePlays');
+    if (playsEl) {
+        playsEl.textContent = `${plays || 0} прослушиваний`;
+    }
+    
+    const cards = document.querySelectorAll(`.track-card[data-track-id="${trackId}"] .track-card-plays`);
+    cards.forEach(el => {
+        el.textContent = `${plays || 0} прослушиваний`;
+    });
+}
+
+// ============================================================
+// ЗАГРУЗКА ИМЁН ФИТОВ
+// ============================================================
+
+async function loadFeatNames(featIds) {
+    if (!featIds || featIds.length === 0) return [];
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('artists')
+            .select('name')
+            .in('id', featIds);
+        
+        if (error) throw error;
+        return data.map(a => a.name);
+    } catch (e) {
+        console.warn('⚠️ Не удалось загрузить имена фитов:', e);
+        return [];
+    }
+}
+
+// ============================================================
+// ИЗБРАННОЕ / ЛАЙКИ
+// ============================================================
+
+async function isTrackFavorite(trackId) {
+    if (!tgUserId) return false;
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('favorites')
+            .select('id')
+            .eq('user_id', tgUserId)
+            .eq('track_id', trackId)
+            .maybeSingle();
+        
+        if (error) throw error;
+        return !!data;
+    } catch (e) {
+        console.warn('⚠️ Ошибка проверки избранного:', e);
+        return false;
+    }
+}
+
+async function addToFavorites(trackId) {
+    if (!tgUserId) {
+        alert('Войдите в аккаунт');
+        return false;
+    }
+    
+    try {
+        const { error } = await supabaseClient
+            .from('favorites')
+            .insert({ user_id: tgUserId, track_id: trackId });
+        
+        if (error) throw error;
+        
+        console.log('❤️ Трек добавлен в избранное');
+        return true;
+    } catch (e) {
+        console.error('❌ Ошибка добавления в избранное:', e);
+        alert('Ошибка: ' + e.message);
+        return false;
+    }
+}
+
+async function removeFromFavorites(trackId) {
+    if (!tgUserId) return false;
+    
+    try {
+        const { error } = await supabaseClient
+            .from('favorites')
+            .delete()
+            .eq('user_id', tgUserId)
+            .eq('track_id', trackId);
+        
+        if (error) throw error;
+        
+        console.log('💔 Трек удалён из избранного');
+        return true;
+    } catch (e) {
+        console.error('❌ Ошибка удаления из избранного:', e);
+        return false;
+    }
+}
+
+async function toggleFavorite(trackId) {
+    const isFav = await isTrackFavorite(trackId);
+    if (isFav) {
+        return await removeFromFavorites(trackId);
+    } else {
+        return await addToFavorites(trackId);
+    }
+}
+
+async function updateFavoriteButton(trackId) {
+    const favBtn = document.getElementById('trackFavoriteBtn');
+    if (!favBtn) return;
+    
+    if (!tgUserId) {
+        favBtn.textContent = '🤍';
+        favBtn.style.opacity = '0.5';
+        return;
+    }
+    
+    const isFav = await isTrackFavorite(trackId);
+    favBtn.textContent = isFav ? '❤️' : '🤍';
+    favBtn.style.opacity = '1';
+}
+
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ ПЛЕЕРА
+// ============================================================
+
 function initTrackPlayer() {
     trackAudio = document.getElementById('trackAudio');
     const playBtn = document.getElementById('trackPlayBtn');
@@ -22,10 +188,17 @@ function initTrackPlayer() {
     const backBtn = document.getElementById('trackBackBtn');
     const lyricsBtn = document.getElementById('trackLyricsBtn');
     const shareBtn = document.getElementById('trackShareBtn');
+    const favBtn = document.getElementById('trackFavoriteBtn');
     const lyricsContainer = document.getElementById('trackPageLyrics');
     const lyricsContent = document.getElementById('trackPageLyricsContent');
 
     if (!trackAudio) return;
+
+    trackAudio.addEventListener('play', () => {
+        if (currentTrack && currentTrack.id) {
+            updateTrackPlays(currentTrack.id);
+        }
+    });
 
     trackAudio.addEventListener('timeupdate', () => {
         if (currentTimeEl) {
@@ -69,6 +242,20 @@ function initTrackPlayer() {
         });
     }
 
+    if (favBtn) {
+        favBtn.addEventListener('click', async () => {
+            if (!currentTrack) return;
+            if (!tgUserId) {
+                alert('Войдите в аккаунт, чтобы добавлять в избранное');
+                return;
+            }
+            const result = await toggleFavorite(currentTrack.id);
+            if (result !== undefined) {
+                await updateFavoriteButton(currentTrack.id);
+            }
+        });
+    }
+
     if (lyricsBtn && lyricsContainer) {
         lyricsBtn.addEventListener('click', () => {
             if (lyricsContainer.style.display === 'none') {
@@ -87,7 +274,11 @@ function initTrackPlayer() {
     if (shareBtn) {
         shareBtn.addEventListener('click', () => {
             if (!currentTrack) return;
-            const shareText = `🎵 ${currentTrack.title} — ${currentTrack.artist_name}\nСлушай на DB Sound!`;
+            
+            const botUsername = 'YourBotUsername';
+            const shareUrl = `https://t.me/${botUsername}?start=track_${currentTrack.id}`;
+            const shareText = `🎵 ${currentTrack.title} — ${currentTrack.artist_name}\nСлушай на DB Sound!\n${shareUrl}`;
+            
             if (navigator.share) {
                 navigator.share({
                     title: currentTrack.title,
@@ -127,17 +318,40 @@ function updateTrackPlayIcon(isPlaying) {
     }
 }
 
+// ============================================================
+// ОТКРЫТИЕ СТРАНИЦЫ ТРЕКА (С ФИТАМИ)
+// ============================================================
+
 function openTrackPage(track) {
     currentTrack = track;
     
     const title = document.getElementById('trackPageTitle');
-    const artist = document.getElementById('trackPageArtist');
+    const artistEl = document.getElementById('trackPageArtist');
     const cover = document.getElementById('trackPageCover');
     const coverBg = document.getElementById('trackPageCoverBg');
     const audio = document.getElementById('trackAudio');
+    const playsEl = document.getElementById('trackPagePlays');
     
     if (title) title.textContent = track.title || 'Без названия';
-    if (artist) artist.textContent = track.artist_name || 'Неизвестный исполнитель';
+    
+    // 🔥 ФОРМИРУЕМ СТРОКУ С ИСПОЛНИТЕЛЯМИ И ФИТАМИ
+    let artistDisplay = track.artist_name || 'Неизвестный исполнитель';
+    
+    if (track.feat_ids && track.feat_ids.length > 0) {
+        loadFeatNames(track.feat_ids).then(featNames => {
+            if (featNames.length > 0) {
+                artistDisplay += ` feat. ${featNames.join(', ')}`;
+                if (artistEl) artistEl.textContent = artistDisplay;
+            }
+        });
+    }
+    
+    if (artistEl) artistEl.textContent = artistDisplay;
+    
+    if (playsEl) {
+        const plays = track.plays || 0;
+        playsEl.textContent = `${plays} ${getPlaysText(plays)}`;
+    }
     
     if (cover) {
         cover.src = track.cover_url || 'firstpage/cover.png';
@@ -155,7 +369,7 @@ function openTrackPage(track) {
         if (navigator.mediaSession) {
             navigator.mediaSession.metadata = new MediaMetadata({
                 title: track.title || 'Без названия',
-                artist: track.artist_name || 'Неизвестный исполнитель',
+                artist: artistDisplay,
                 album: "DB Sound",
                 artwork: [
                     {
@@ -172,6 +386,10 @@ function openTrackPage(track) {
     
     navigateTo('track');
     
+    setTimeout(async () => {
+        await updateFavoriteButton(track.id);
+    }, 100);
+    
     setTimeout(() => {
         renderTrackComments();
     }, 300);
@@ -184,6 +402,21 @@ function openTrackPage(track) {
             updateMiniPlayerPlayIcon(true);
         }
     }, 400);
+}
+
+// ============================================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================
+
+function getPlaysText(count) {
+    if (count === 0) return 'прослушиваний';
+    const lastDigit = count % 10;
+    const lastTwoDigits = count % 100;
+    
+    if (lastTwoDigits >= 11 && lastTwoDigits <= 19) return 'прослушиваний';
+    if (lastDigit === 1) return 'прослушивание';
+    if (lastDigit >= 2 && lastDigit <= 4) return 'прослушивания';
+    return 'прослушиваний';
 }
 
 // ============================================================
