@@ -1029,50 +1029,56 @@ body {
 }
 
 /* ============================================================
-   БЕЗОПАСНАЯ ЗОНА ДЛЯ TELEGRAM (смещаем контент вниз)
+   ОТСТУП ДЛЯ ВСЕХ СТРАНИЦ (КРОМЕ ВОЛОДЯ)
    ============================================================ */
 
-/* Для всех страниц, кроме старой (ВОЛОДЯ) */
+/* Безопасная зона для Telegram */
+:root {
+    --tg-safe-top: env(safe-area-inset-top, 0px);
+    --tg-nav-height: 60px;  /* ← УВЕЛИЧИЛО С 44 ДО 60 */
+}
+
+/* Смещаем контент всех страниц вниз */
 #page-home .page-header,
 #page-track .track-page,
 #page-upload .page-header,
 #page-profile .page-header,
-#page-admin .page-header {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 44px);
-    /* 44px — примерная высота навигации Telegram */
+#page-admin .page-header,
+#page-track .track-back-btn {
+    padding-top: calc(var(--tg-safe-top) + var(--tg-nav-height) + 16px);
 }
 
-/* Особый случай для страницы трека (у неё своя структура) */
-#page-track .track-page {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 44px);
+/* Для главной — дополнительный отступ у приветствия */
+#page-home .greeting {
+    margin-top: 4px;
 }
 
-/* Для главной страницы — отступ у хедера */
-#page-home .page-header {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 44px);
-}
-
-/* Для страницы профиля */
-#page-profile .profile-card {
-    margin-top: calc(env(safe-area-inset-top, 0px) + 20px);
-}
-
-/* Для админ-панели */
-#page-admin .page-header {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 44px);
-}
-
-/* Для страницы загрузки */
-#page-upload .page-header {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 44px);
+/* Для страницы трека — убираем лишний отступ у кнопки "Назад" */
+#page-track .track-back-btn {
+    margin-bottom: 0;
 }
 
 /* Для страницы трека — обложка */
 #page-track .track-page-cover-wrapper {
-    margin-top: calc(env(safe-area-inset-top, 0px) + 20px);
+    margin-top: calc(var(--tg-safe-top) + 16px);
 }
 
-/* Для вкладок на главной */
+/* Для главной — вкладки */
 #page-home .tabs {
     margin-top: 8px;
+}
+
+/* Для профиля — карточка */
+#page-profile .profile-card {
+    margin-top: calc(var(--tg-safe-top) + 16px);
+}
+
+/* Для загрузки — форма */
+#page-upload .upload-form {
+    margin-top: calc(var(--tg-safe-top) + 16px);
+}
+
+/* Для админ-панели */
+#page-admin .admin-section {
+    margin-top: calc(var(--tg-safe-top) + 8px);
 }
