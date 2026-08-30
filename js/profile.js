@@ -9,6 +9,42 @@
 // ⚠️ ЗАМЕНИ НА СВОЙ ТОКЕН БОТА!
 const TELEGRAM_BOT_TOKEN = '8738300634:AAEpt28j3rvGyqibMI8yPWFZLJCVhxEi0lM';
 
+// ============================================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================
+
+function escapeHTML(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ============================================================
+// ЗАГРУЗКА ИМЁН ФИТОВ ПО ID
+// ============================================================
+
+async function loadFeatNames(featIds) {
+    if (!featIds || featIds.length === 0) return [];
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('artists')
+            .select('name')
+            .in('id', featIds);
+        
+        if (error) throw error;
+        return data.map(a => a.name);
+    } catch (e) {
+        console.warn('⚠️ Не удалось загрузить имена фитов:', e);
+        return [];
+    }
+}
+
+// ============================================================
+// ПОЛУЧЕНИЕ АВАТАРА
+// ============================================================
+
 async function getUserAvatar(userId) {
     if (!userId) return null;
     
@@ -59,7 +95,7 @@ async function getUserAvatar(userId) {
 }
 
 // ============================================================
-// ЗАГРУЗКА ПРОЕКТОВ ПОЛЬЗОВАТЕЛЯ
+// ЗАГРУЗКА ПРОЕКТОВ ПОЛЬЗОВАТЕЛЯ (С ФИТАМИ)
 // ============================================================
 
 async function loadMyTracks() {
@@ -83,7 +119,6 @@ async function loadMyTracks() {
         
         console.log('✅ Загружено проектов:', data?.length || 0);
         
-        // 🔥 Считаем общее количество прослушиваний
         let totalPlays = 0;
         if (data && data.length > 0) {
             totalPlays = data.reduce((sum, track) => sum + (track.plays || 0), 0);
@@ -106,7 +141,8 @@ async function loadMyTracks() {
         }
         
         container.innerHTML = '';
-        data.forEach((track) => {
+        
+        for (const track of data) {
             const item = document.createElement('div');
             item.className = 'my-track-item';
             
@@ -114,12 +150,20 @@ async function loadMyTracks() {
             const isOwner = track.owner_id === tgUserId;
             const isAdmin = currentUserPermissions.is_admin === true;
             
+            let artistDisplay = track.artist_name || 'Неизвестный исполнитель';
+            if (track.feat_ids && track.feat_ids.length > 0) {
+                const featNames = await loadFeatNames(track.feat_ids);
+                if (featNames.length > 0) {
+                    artistDisplay += ` feat. ${featNames.join(', ')}`;
+                }
+            }
+            
             item.innerHTML = `
                 <img src="${coverUrl}" alt="${track.title}" class="my-track-cover" 
                      onerror="this.src='firstpage/cover.png'">
                 <div class="my-track-info">
                     <div class="my-track-title">${escapeHTML(track.title)}</div>
-                    <div class="my-track-artist">${escapeHTML(track.artist_name || 'Неизвестный исполнитель')}</div>
+                    <div class="my-track-artist">${escapeHTML(artistDisplay)}</div>
                     <div class="my-track-plays">${track.plays || 0} прослушиваний</div>
                 </div>
                 <div class="my-track-actions">
@@ -160,7 +204,7 @@ async function loadMyTracks() {
             });
             
             container.appendChild(item);
-        });
+        }
         
     } catch (e) {
         console.error('❌ Ошибка загрузки проектов:', e);
@@ -271,17 +315,15 @@ async function loadArtistsForEditFeats() {
     try {
         const { data, error } = await supabaseClient
             .from('artists')
-            .select('name, id')
+            .select('name, id, user_id')
             .order('name');
         
         if (error) throw error;
         
         list.innerHTML = '';
+        
         data.forEach(artist => {
-            // 🔥 ПРОПУСКАЕМ СЕБЯ (текущего пользователя)
-            if (artist.user_id === tgUserId) {
-                return; // ← не добавляем себя в список фитов
-            }
+            if (artist.user_id === tgUserId) return;
             const option = document.createElement('option');
             option.value = artist.name;
             option.dataset.artistId = artist.id;
@@ -297,19 +339,32 @@ async function loadArtistsForEditFeats() {
 // ============================================================
 
 function openEditModal(track) {
-    // Загружаем текущие фиты трека
+    console.log('🔍 openEditModal вызван для трека:', track.title);
+    console.log('🔍 track.feat_ids:', track.feat_ids);
+    
     let selectedEditFeats = [];
     
-    // Загружаем имена фитов для отображения
     async function loadEditFeatNames() {
         const featIds = track.feat_ids || [];
-        if (featIds.length === 0) return [];
+        console.log('🔍 Загружаем имена фитов для ID:', featIds);
+        
+        if (featIds.length === 0) {
+            console.log('🔍 Нет фитов для загрузки');
+            return [];
+        }
+        
         try {
             const { data, error } = await supabaseClient
                 .from('artists')
                 .select('name, id')
                 .in('id', featIds);
-            if (error) throw error;
+            
+            if (error) {
+                console.error('❌ Ошибка загрузки фитов:', error);
+                return [];
+            }
+            
+            console.log('✅ Загружены имена фитов:', data);
             return data || [];
         } catch (e) {
             console.warn('⚠️ Не удалось загрузить фиты:', e);
@@ -317,7 +372,6 @@ function openEditModal(track) {
         }
     }
     
-    // Рендер фитов в модалке
     function renderEditFeatsList() {
         const container = document.getElementById('editFeatsList');
         if (!container) return;
@@ -342,9 +396,10 @@ function openEditModal(track) {
         });
     }
     
-    // Загружаем фиты и открываем модалку
     loadEditFeatNames().then(feats => {
+        console.log('🔍 Получены фиты для модалки:', feats);
         selectedEditFeats = feats.map(f => ({ name: f.name, id: f.id }));
+        console.log('🔍 selectedEditFeats после маппинга:', selectedEditFeats);
         
         const modal = document.createElement('div');
         modal.className = 'edit-modal-overlay';
@@ -388,13 +443,19 @@ function openEditModal(track) {
                     </div>
                     <div class="form-group">
                         <label>Обложка</label>
-                        <input type="file" accept=".jpg,.jpeg,.png,.webp" id="editCover">
-                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Оставьте пустым, чтобы не менять</p>
+                        <div class="file-input-wrapper">
+                            <input type="file" accept=".jpg,.jpeg,.png,.webp" id="editCover">
+                            <span class="file-name" id="editCoverName">${track.cover_url ? '✅ Обложка есть' : 'Файл не выбран'}</span>
+                        </div>
+                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Выберите новый файл, чтобы заменить текущую обложку</p>
                     </div>
                     <div class="form-group">
                         <label>Аудиофайл</label>
-                        <input type="file" accept=".mp3,.wav,.m4a,.flac" id="editAudio">
-                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Оставьте пустым, чтобы не менять</p>
+                        <div class="file-input-wrapper">
+                            <input type="file" accept=".mp3,.wav,.m4a,.flac" id="editAudio">
+                            <span class="file-name" id="editAudioName">${track.audio_url ? '✅ Аудио есть' : 'Файл не выбран'}</span>
+                        </div>
+                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Выберите новый файл, чтобы заменить текущее аудио</p>
                     </div>
                 </div>
                 <div class="edit-modal-footer">
@@ -407,13 +468,43 @@ function openEditModal(track) {
         document.body.appendChild(modal);
         document.body.style.overflow = 'hidden';
         
-        // Отрисовываем фиты
         renderEditFeatsList();
-        
-        // Загружаем список исполнителей для фитов
         loadArtistsForEditFeats();
         
-        // Закрытие
+        // ============================================================
+        // ОБРАБОТЧИКИ ВЫБОРА ФАЙЛОВ (ПОСЛЕ СОЗДАНИЯ МОДАЛКИ)
+        // ============================================================
+        
+        // Обложка — показываем имя выбранного файла
+        const editCoverInput = document.getElementById('editCover');
+        const editCoverName = document.getElementById('editCoverName');
+        
+        if (editCoverInput && editCoverName) {
+            editCoverInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    editCoverName.textContent = `📎 ${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
+                } else {
+                    editCoverName.textContent = track.cover_url ? '✅ Обложка есть' : 'Файл не выбран';
+                }
+            });
+        }
+        
+        // Аудио — показываем имя выбранного файла
+        const editAudioInput = document.getElementById('editAudio');
+        const editAudioName = document.getElementById('editAudioName');
+        
+        if (editAudioInput && editAudioName) {
+            editAudioInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    editAudioName.textContent = `📎 ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+                } else {
+                    editAudioName.textContent = track.audio_url ? '✅ Аудио есть' : 'Файл не выбран';
+                }
+            });
+        }
+        
         const closeModal = () => {
             modal.remove();
             document.body.style.overflow = '';
@@ -425,14 +516,59 @@ function openEditModal(track) {
             if (e.target === modal) closeModal();
         });
         
-        // Добавление фита
         const editFeatInput = document.getElementById('editFeatInput');
         const editAddFeatBtn = document.getElementById('editAddFeatBtn');
         
         if (editAddFeatBtn && editFeatInput) {
+            // ОБРАБОТКА ВЫБОРА ИЗ СПИСКА (AUTO-ADD) ДЛЯ РЕДАКТИРОВАНИЯ
+            editFeatInput.addEventListener('change', function() {
+                const name = this.value.trim();
+                console.log('🔍 Редактирование: выбрано из списка (change):', name);
+                
+                if (!name) return;
+                
+                const options = document.querySelectorAll('#editFeatList option');
+                let found = null;
+                options.forEach(opt => {
+                    if (opt.value === name) {
+                        found = {
+                            name: opt.value,
+                            id: opt.dataset.artistId
+                        };
+                    }
+                });
+                
+                console.log('🔍 Редактирование: найден исполнитель:', found);
+                
+                if (found) {
+                    if (selectedEditFeats.some(f => f.name === found.name)) {
+                        alert('Этот исполнитель уже добавлен');
+                        this.value = '';
+                        return;
+                    }
+                    selectedEditFeats.push(found);
+                    renderEditFeatsList();
+                    this.value = '';
+                }
+            });
+            
+            // Обработка кнопки "+"
             editAddFeatBtn.addEventListener('click', () => {
                 const name = editFeatInput.value.trim();
-                if (!name) return;
+                if (!name) {
+                    // Пытаемся взять значение из выпадающего списка
+                    const selectedOption = document.querySelector('#editFeatList option[value]');
+                    if (selectedOption) {
+                        console.log('🔍 Нашли значение в datalist:', selectedOption.value);
+                        editFeatInput.value = selectedOption.value;
+                        const event = new Event('change', { bubbles: true });
+                        editFeatInput.dispatchEvent(event);
+                        return;
+                    }
+                    alert('Введите имя исполнителя или выберите из списка');
+                    return;
+                }
+                
                 if (selectedEditFeats.some(f => f.name === name)) {
                     alert('Этот исполнитель уже добавлен');
                     return;
@@ -442,7 +578,10 @@ function openEditModal(track) {
                 let found = null;
                 options.forEach(opt => {
                     if (opt.value === name) {
-                        found = { name: opt.value, id: parseInt(opt.dataset.artistId) };
+                        found = { 
+                            name: opt.value, 
+                            id: opt.dataset.artistId
+                        };
                     }
                 });
                 
@@ -476,7 +615,6 @@ function openEditModal(track) {
             });
         }
         
-        // Сохранение
         document.getElementById('editSave').addEventListener('click', async () => {
             const title = document.getElementById('editTitle').value.trim();
             const lyrics = document.getElementById('editLyrics').value.trim();
@@ -489,11 +627,15 @@ function openEditModal(track) {
             }
             
             try {
+                console.log('🔍 Сохранение: selectedEditFeats перед сохранением:', selectedEditFeats);
+                
                 const updates = {
                     title: title,
                     lyrics: lyrics,
                     feat_ids: selectedEditFeats.map(f => f.id).filter(id => id)
                 };
+                
+                console.log('🔍 Отправляем обновление:', updates);
                 
                 if (coverFile) {
                     const coverExt = coverFile.name.split('.').pop();

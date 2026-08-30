@@ -89,13 +89,14 @@ async function loadTracksToHome() {
 }
 
 // ============================================================
-// ЗАГРУЗКА ИМЁН ФИТОВ ПО ID
+// ЗАГРУЗКА ИМЁН ФИТОВ ПО UUID
 // ============================================================
 
 async function loadFeatNames(featIds) {
     if (!featIds || featIds.length === 0) return [];
     
     try {
+        // featIds теперь содержит UUID из artists.id
         const { data, error } = await supabaseClient
             .from('artists')
             .select('name')
@@ -120,12 +121,13 @@ async function loadArtistsForFeats() {
     try {
         const { data, error } = await supabaseClient
             .from('artists')
-            .select('name, id')
+            .select('name, id, user_id')
             .order('name');
         
         if (error) throw error;
         
         featList.innerHTML = '';
+        
         data.forEach(artist => {
             // 🔥 ПРОПУСКАЕМ СЕБЯ (текущего пользователя)
             if (artist.user_id === tgUserId) {
@@ -134,32 +136,48 @@ async function loadArtistsForFeats() {
             const option = document.createElement('option');
             option.value = artist.name;
             option.dataset.userId = artist.user_id || '';
-            option.dataset.artistId = artist.id;
+            option.dataset.artistId = artist.id;  // ← ЭТО UUID
             featList.appendChild(option);
         });
+        
+        console.log('✅ Загружено исполнителей для фитов:', featList.children.length);
+        
     } catch (e) {
         console.error('❌ Ошибка загрузки исполнителей:', e);
     }
 }
 
 // ============================================================
-// ДОБАВЛЕНИЕ ФИТА
+// ДОБАВЛЕНИЕ ФИТА (СОХРАНЯЕМ artistId - UUID)
 // ============================================================
 
 function addFeat(name, userId, artistId) {
-    if (!name || name.trim() === '') return;
+    console.log('🔍 addFeat ВЫЗВАН!', { name, userId, artistId });
+    
+    if (!name || name.trim() === '') {
+        console.log('🔍 Имя пустое, выходим');
+        return;
+    }
+    
     if (selectedFeats.some(f => f.name === name)) {
+        console.log('🔍 Исполнитель уже добавлен');
         alert('Этот исполнитель уже добавлен');
         return;
     }
     
-    // Не добавляем самого себя (если есть userId и он совпадает)
     if (userId && userId === tgUserId) {
         alert('Вы не можете добавить себя как фит');
         return;
     }
     
-    selectedFeats.push({ name: name.trim(), user_id: userId, artist_id: artistId });
+    // 🔥 СОХРАНЯЕМ artistId (UUID) В selectedFeats
+    selectedFeats.push({ 
+        name: name.trim(), 
+        user_id: userId || null, 
+        artist_id: artistId || null  // ← UUID из artists.id
+    });
+    
+    console.log('🔍 selectedFeats ПОСЛЕ добавления:', selectedFeats);
     renderFeatsList();
     document.getElementById('featInput').value = '';
 }
@@ -212,6 +230,7 @@ async function createNewArtist(name) {
         if (error) throw error;
         
         console.log('✅ Создан новый исполнитель:', data);
+        console.log('🔍 ID нового исполнителя (UUID):', data.id);
         
         // Добавляем в список
         const featList = document.getElementById('featList');
@@ -219,11 +238,11 @@ async function createNewArtist(name) {
             const option = document.createElement('option');
             option.value = data.name;
             option.dataset.userId = '';
-            option.dataset.artistId = data.id;
+            option.dataset.artistId = data.id;  // ← UUID
             featList.appendChild(option);
         }
         
-        // Добавляем как фит
+        // Добавляем как фит (передаём UUID)
         addFeat(data.name, null, data.id);
         
     } catch (e) {
@@ -301,7 +320,7 @@ async function loadFavoriteTracks() {
 }
 
 // ============================================================
-// РЕНДЕР СПИСКА ТРЕКОВ (С ПРАВИЛЬНЫМ СКЕЛЕТОНОМ)
+// РЕНДЕР СПИСКА ТРЕКОВ (С ПРАВИЛЬНЫМ СКЕЛЕТОНОМ И ФИТАМИ)
 // ============================================================
 
 function renderTrackList(tracks, container) {
@@ -314,6 +333,7 @@ function renderTrackList(tracks, container) {
         const coverUrl = track.cover_url || 'firstpage/cover.png';
         const playsCount = track.plays || 0;
         
+        // 🔥 ФОРМИРУЕМ СТРОКУ С ИСПОЛНИТЕЛЯМИ И ФИТАМИ
         let artistDisplay = track.artist_name || 'Неизвестный исполнитель';
         if (track._feat_names && track._feat_names.length > 0) {
             artistDisplay += ` feat. ${track._feat_names.join(', ')}`;
@@ -327,7 +347,12 @@ function renderTrackList(tracks, container) {
                  onerror="this.src='firstpage/cover.png'">
             <div class="track-card-info">
                 <div class="track-card-title">${escapeHTML(track.title)}</div>
-                <div class="track-card-artist">${escapeHTML(artistDisplay)}</div>
+                <div class="track-card-artist">
+                    ${showSkeleton 
+                        ? `<span class="skeleton skeleton-text" style="width:80px;"></span>` 
+                        : escapeHTML(artistDisplay)
+                    }
+                </div>
                 <div class="track-card-plays">
                     ${showSkeleton 
                         ? `<span class="skeleton skeleton-sm"></span>` 
@@ -370,44 +395,44 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. АВТОПОДСТАНОВКА ИМЕНИ ИСПОЛНИТЕЛЯ
     // ============================================================
     
-   function setDefaultArtist() {
-    if (!artistInput) return;
-    
-    // 🔥 ПРОБУЕМ ПОЛУЧИТЬ ПСЕВДОНИМ ИЗ ТАБЛИЦЫ artists
-    if (tgUserId && tgUserId !== 0) {
-        supabaseClient
-            .from('artists')
-            .select('name')
-            .eq('user_id', tgUserId)
-            .maybeSingle()
-            .then(({ data, error }) => {
-                if (data && data.name) {
-                    artistInput.value = data.name;
-                    console.log('✅ Псевдоним исполнителя из artists:', data.name);
-                } else {
-                    // Если псевдонима нет — используем имя из Telegram
+    function setDefaultArtist() {
+        if (!artistInput) return;
+        
+        // 🔥 ПРОБУЕМ ПОЛУЧИТЬ ПСЕВДОНИМ ИЗ ТАБЛИЦЫ artists
+        if (tgUserId && tgUserId !== 0) {
+            supabaseClient
+                .from('artists')
+                .select('name')
+                .eq('user_id', tgUserId)
+                .maybeSingle()
+                .then(({ data, error }) => {
+                    if (data && data.name) {
+                        artistInput.value = data.name;
+                        console.log('✅ Псевдоним исполнителя из artists:', data.name);
+                    } else {
+                        // Если псевдонима нет — используем имя из Telegram
+                        fallbackArtistName();
+                    }
+                })
+                .catch(() => {
                     fallbackArtistName();
-                }
-            })
-            .catch(() => {
-                fallbackArtistName();
-            });
-    } else {
-        fallbackArtistName();
-    }
-}
-
-function fallbackArtistName() {
-    if (!artistInput) return;
-    let name = '';
-    if (tgUser) {
-        name = tgUser.first_name || '';
-        if (tgUser.last_name) {
-            name += ' ' + tgUser.last_name;
+                });
+        } else {
+            fallbackArtistName();
         }
     }
-    artistInput.value = name.trim() || 'chamxmile';
-}
+
+    function fallbackArtistName() {
+        if (!artistInput) return;
+        let name = '';
+        if (tgUser) {
+            name = tgUser.first_name || '';
+            if (tgUser.last_name) {
+                name += ' ' + tgUser.last_name;
+            }
+        }
+        artistInput.value = name.trim() || 'chamxmile';
+    }
     
     // Вызываем автоподстановку с задержкой, чтобы tgUser успел загрузиться
     setTimeout(setDefaultArtist, 500);
@@ -423,8 +448,13 @@ function fallbackArtistName() {
     // ============================================================
     
     if (addFeatBtn && featInput) {
-        addFeatBtn.addEventListener('click', () => {
-            const name = featInput.value.trim();
+        console.log('🔍 Кнопка "+" найдена, добавляем обработчик');
+        
+        // 🔥 ОБРАБОТКА ВЫБОРА ИЗ СПИСКА (AUTO-ADD)
+        featInput.addEventListener('change', function() {
+            const name = this.value.trim();
+            console.log('🔍 Выбрано из списка (change):', name);
+            
             if (!name) return;
             
             const options = document.querySelectorAll('#featList option');
@@ -434,10 +464,56 @@ function fallbackArtistName() {
                     found = {
                         name: opt.value,
                         userId: opt.dataset.userId ? parseInt(opt.dataset.userId) : null,
-                        artistId: opt.dataset.artistId ? parseInt(opt.dataset.artistId) : null
+                        artistId: opt.dataset.artistId || null  // ← UUID
                     };
                 }
             });
+            
+            console.log('🔍 Найден исполнитель:', found);
+            
+            if (found) {
+                addFeat(found.name, found.userId, found.artistId);
+                this.value = ''; // Очищаем поле после добавления
+            }
+        });
+        
+        // 🔥 ОБРАБОТКА ВВОДА И НАЖАТИЯ "+"
+        addFeatBtn.addEventListener('click', () => {
+            console.log('🔍 Кнопка "+" НАЖАТА!');
+            const name = featInput.value.trim();
+            console.log('🔍 Имя фита:', name);
+            
+            if (!name) {
+                console.log('🔍 Имя пустое, выходим');
+                // Пытаемся взять значение из выпадающего списка
+                const selectedOption = document.querySelector('#featList option[value]');
+                if (selectedOption) {
+                    console.log('🔍 Нашли значение в datalist:', selectedOption.value);
+                    featInput.value = selectedOption.value;
+                    // Вызываем change событие
+                    const event = new Event('change', { bubbles: true });
+                    featInput.dispatchEvent(event);
+                    return;
+                }
+                alert('Введите имя исполнителя или выберите из списка');
+                return;
+            }
+            
+            const options = document.querySelectorAll('#featList option');
+            console.log('🔍 Найдено опций в datalist:', options.length);
+            
+            let found = null;
+            options.forEach(opt => {
+                if (opt.value === name) {
+                    found = {
+                        name: opt.value,
+                        userId: opt.dataset.userId ? parseInt(opt.dataset.userId) : null,
+                        artistId: opt.dataset.artistId || null  // ← UUID
+                    };
+                }
+            });
+            
+            console.log('🔍 Найден исполнитель:', found);
             
             if (found) {
                 addFeat(found.name, found.userId, found.artistId);
@@ -449,9 +525,14 @@ function fallbackArtistName() {
         featInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                console.log('🔍 Enter нажат в поле фита');
                 addFeatBtn.click();
             }
         });
+    } else {
+        console.log('❌ Кнопка "+" или поле ввода не найдены!');
+        console.log('🔍 addFeatBtn:', addFeatBtn);
+        console.log('🔍 featInput:', featInput);
     }
     
     // ============================================================
@@ -543,6 +624,9 @@ function fallbackArtistName() {
                 statusDiv.textContent = '⏳ Сохранение данных...';
                 statusDiv.style.color = '#ffeb3b';
 
+                console.log('🔍 selectedFeats ПЕРЕД сохранением:', selectedFeats);
+
+                // 🔥 СОХРАНЯЕМ ТОЛЬКО artistId (UUID) В feat_ids
                 const track = {
                     owner_id: tgUserId,
                     title: title,
@@ -552,7 +636,7 @@ function fallbackArtistName() {
                     lyrics: lyrics || '',
                     duration: 0,
                     status: 'active',
-                    feat_ids: selectedFeats.map(f => f.artist_id || f.user_id).filter(id => id)
+                    feat_ids: selectedFeats.map(f => f.artist_id).filter(id => id)  // ← ТОЛЬКО UUID
                 };
 
                 console.log('📝 Сохраняем трек:', track);

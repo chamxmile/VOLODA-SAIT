@@ -8,6 +8,49 @@ window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 var supabaseClient = window.supabaseClient;
 
 // ============================================================
+// ПОЛНОЭКРАННЫЙ РЕЖИМ И БЛОКИРОВКА ОРИЕНТАЦИИ
+// ============================================================
+
+function enableFullscreen() {
+    try {
+        const tg = window.Telegram?.WebApp;
+        if (!tg) {
+            console.log('ℹ️ Telegram WebApp не найден');
+            return;
+        }
+        
+        // Растягиваем на всю высоту (доступно всегда)
+        if (tg.expand) {
+            tg.expand();
+            console.log('✅ WebApp растянут на всю высоту');
+        }
+        
+        // Пробуем включить настоящий полноэкранный режим (Bot API 8.0+)
+        if (tg.requestFullscreen && typeof tg.requestFullscreen === 'function') {
+            tg.requestFullscreen();
+            console.log('✅ Полноэкранный режим активирован');
+        } else {
+            console.log('ℹ️ Полноэкранный режим не поддерживается, используем expand');
+        }
+        
+        // Блокировка ориентации (для плеера лучше портретная или альбомная)
+        // По умолчанию доступно с версии SDK 2.0+
+        if (tg.lockOrientation && typeof tg.lockOrientation === 'function') {
+            // 'portrait' — портретная ориентация
+            // 'landscape' — альбомная ориентация
+            // 'any' — любая (по умолчанию)
+            tg.lockOrientation('portrait');
+            console.log('🔒 Ориентация заблокирована: portrait');
+        } else {
+            console.log('ℹ️ Блокировка ориентации не поддерживается');
+        }
+        
+    } catch (e) {
+        console.warn('⚠️ Не удалось включить полноэкранный режим:', e);
+    }
+}
+
+// ============================================================
 // PRELOADER
 // ============================================================
 
@@ -166,6 +209,9 @@ async function initApp() {
     console.log('🚀 Инициализация DB Sound...');
     
     showPreloader();
+    
+    // 🔥 ВКЛЮЧАЕМ ПОЛНОЭКРАННЫЙ РЕЖИМ
+    enableFullscreen();
     
     initNavigation();
     

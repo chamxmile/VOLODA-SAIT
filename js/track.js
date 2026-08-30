@@ -214,7 +214,7 @@ function initTrackPlayer() {
         
         playCheckInterval = setInterval(() => {
             if (trackAudio && trackAudio.currentTime >= 10 && !isPlayCounted && currentTrack && currentTrack.id) {
-                console.log('✅ Трек играет больше 3 секунд, увеличиваем счётчик');
+                console.log('✅ Трек играет больше 10 секунд, увеличиваем счётчик');
                 updateTrackPlays(currentTrack.id);
                 clearInterval(playCheckInterval);
                 playCheckInterval = null;
@@ -353,7 +353,7 @@ function updateTrackPlayIcon(isPlaying) {
 }
 
 // ============================================================
-// ОТКРЫТИЕ СТРАНИЦЫ ТРЕКА (С ФИТАМИ)
+// ОТКРЫТИЕ СТРАНИЦЫ ТРЕКА (С ФИТАМИ - ИСПРАВЛЕНО)
 // ============================================================
 
 function openTrackPage(track) {
@@ -374,64 +374,28 @@ function openTrackPage(track) {
     
     if (title) title.textContent = track.title || 'Без названия';
     
-    let artistDisplay = track.artist_name || 'Неизвестный исполнитель';
-    if (artistEl) artistEl.textContent = artistDisplay;
-    
-    // 🔥 ПОКАЗЫВАЕМ СКЕЛЕТОН, ПОКА ЗАГРУЖАЕТСЯ АКТУАЛЬНОЕ ЗНАЧЕНИЕ
-    if (playsEl) {
-        playsEl.innerHTML = `<span class="skeleton skeleton-md"></span>`;
+    // 🔥 ПОКАЗЫВАЕМ СКЕЛЕТОН ДЛЯ ИСПОЛНИТЕЛЯ
+    if (artistEl) {
+        artistEl.innerHTML = `<span class="skeleton skeleton-md" style="width:120px;"></span>`;
     }
     
-    // 🔥 ЗАГРУЖАЕМ АКТУАЛЬНОЕ ЗНАЧЕНИЕ ИЗ БД
-    if (track.id) {
-        supabaseClient
-        .from('tracks')
-        .select('plays')
-        .eq('id', track.id)
-        .single()
-        .then(({ data, error }) => {
-            if (!error && data && playsEl) {
-                const plays = data.plays || 0;
-                playsEl.textContent = `${plays} ${getPlaysText(plays)}`;
-                // 🔥 ДОБАВЛЯЕМ КЛАСС ДЛЯ ПЛАВНОГО ПОЯВЛЕНИЯ
-                playsEl.classList.add('fade-in');
-                updateTrackPlaysDisplay(track.id, plays);
-            }
-        })
-        .catch(() => {
-            if (playsEl) {
-                const plays = track.plays || 0;
-                playsEl.textContent = `${plays} ${getPlaysText(plays)}`;
-                playsEl.classList.add('fade-in');
-            }
-        });
-}
-    
-    if (track.feat_ids && track.feat_ids.length > 0) {
-        loadFeatNames(track.feat_ids).then(featNames => {
+    // 🔥 ЗАГРУЖАЕМ ИМЕНА ФИТОВ И ОБНОВЛЯЕМ СТРОКУ
+    async function updateArtistDisplay() {
+        let artistDisplay = track.artist_name || 'Неизвестный исполнитель';
+        
+        if (track.feat_ids && track.feat_ids.length > 0) {
+            const featNames = await loadFeatNames(track.feat_ids);
             if (featNames.length > 0) {
                 artistDisplay += ` feat. ${featNames.join(', ')}`;
-                if (artistEl) artistEl.textContent = artistDisplay;
             }
-        });
-    }
-    
-    if (artistEl) artistEl.textContent = artistDisplay;
-    
-    if (cover) {
-        cover.src = track.cover_url || 'firstpage/cover.png';
-        cover.onload = () => {
-            if (coverBg) {
-                coverBg.style.backgroundImage = `url(${cover.src})`;
-            }
-        };
-    }
-    
-    if (audio && track.audio_url) {
-        audio.src = track.audio_url;
-        audio.load();
+        }
         
-        if (navigator.mediaSession) {
+        if (artistEl) {
+            artistEl.textContent = artistDisplay;
+        }
+        
+        // Обновляем Media Session
+        if (navigator.mediaSession && audio) {
             navigator.mediaSession.metadata = new MediaMetadata({
                 title: track.title || 'Без названия',
                 artist: artistDisplay,
@@ -445,6 +409,52 @@ function openTrackPage(track) {
                 ]
             });
         }
+    }
+    
+    // Вызываем загрузку фитов
+    updateArtistDisplay();
+    
+    // 🔥 ПОКАЗЫВАЕМ СКЕЛЕТОН ДЛЯ СЧЁТЧИКА
+    if (playsEl) {
+        playsEl.innerHTML = `<span class="skeleton skeleton-md"></span>`;
+    }
+    
+    // 🔥 ЗАГРУЖАЕМ АКТУАЛЬНОЕ ЗНАЧЕНИЕ СЧЁТЧИКА ИЗ БД
+    if (track.id) {
+        supabaseClient
+            .from('tracks')
+            .select('plays')
+            .eq('id', track.id)
+            .single()
+            .then(({ data, error }) => {
+                if (!error && data && playsEl) {
+                    const plays = data.plays || 0;
+                    playsEl.textContent = `${plays} ${getPlaysText(plays)}`;
+                    playsEl.classList.add('fade-in');
+                    updateTrackPlaysDisplay(track.id, plays);
+                }
+            })
+            .catch(() => {
+                if (playsEl) {
+                    const plays = track.plays || 0;
+                    playsEl.textContent = `${plays} ${getPlaysText(plays)}`;
+                    playsEl.classList.add('fade-in');
+                }
+            });
+    }
+    
+    if (cover) {
+        cover.src = track.cover_url || 'firstpage/cover.png';
+        cover.onload = () => {
+            if (coverBg) {
+                coverBg.style.backgroundImage = `url(${cover.src})`;
+            }
+        };
+    }
+    
+    if (audio && track.audio_url) {
+        audio.src = track.audio_url;
+        audio.load();
     }
     
     updateMiniPlayer(track);
@@ -497,7 +507,21 @@ function updateMiniPlayer(track) {
     if (miniPlayer) miniPlayer.style.display = 'flex';
     if (cover) cover.src = track.cover_url || 'firstpage/cover.png';
     if (title) title.textContent = track.title || 'Без названия';
-    if (artist) artist.textContent = track.artist_name || 'Неизвестный исполнитель';
+    if (artist) {
+        let artistDisplay = track.artist_name || 'Неизвестный исполнитель';
+        // 🔥 Добавляем фиты в мини-плеер
+        if (track.feat_ids && track.feat_ids.length > 0) {
+            loadFeatNames(track.feat_ids).then(featNames => {
+                if (featNames.length > 0) {
+                    artist.textContent = artistDisplay + ` feat. ${featNames.join(', ')}`;
+                } else {
+                    artist.textContent = artistDisplay;
+                }
+            });
+        } else {
+            artist.textContent = artistDisplay;
+        }
+    }
     
     const info = miniPlayer?.querySelector('.mini-player-info');
     if (info) {

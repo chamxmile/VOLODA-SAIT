@@ -1004,3 +1004,26 @@ body {
     opacity: 0;
     transform: translateY(4px);
 }
+
+/* ============================================================
+   ФАЙЛЫ В РЕДАКТИРОВАНИИ
+   ============================================================ */
+.file-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.file-input-wrapper input[type="file"] {
+    flex-shrink: 0;
+    max-width: 200px;
+}
+
+.file-input-wrapper .file-name {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
