@@ -444,7 +444,7 @@ function openTrackPage(track) {
     }
     
     if (cover) {
-        cover.src = track.cover_url || 'oblozchki/obl2.png';
+        cover.src = track.cover_url || 'oblozchki/obl1.png';
         cover.onload = () => {
             if (coverBg) {
                 coverBg.style.backgroundImage = `url(${cover.src})`;
