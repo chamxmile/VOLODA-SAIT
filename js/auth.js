@@ -57,17 +57,19 @@ function initTelegram() {
             }
         }
         
-        console.warn('⚠️ Пользователь не определён, используем fallback');
-        const fallbackUser = {
-            id: 0,
-            first_name: 'Гость',
+        // 🔥 ВРЕМЕННО: ИСПОЛЬЗУЕМ MOCK-ПОЛЬЗОВАТЕЛЯ ДЛЯ РАЗРАБОТКИ
+        console.log('🔧 Режим разработки: используем mock-пользователя');
+        const mockUser = {
+            id: 1418934373,  // ← Твой реальный Telegram ID из WHITE_LIST
+            first_name: 'chamxmile',
             last_name: '',
-            username: null,
+            username: 'chamxmile',
             language_code: 'ru'
         };
-        tgUser = fallbackUser;
-        tgUserId = fallbackUser.id;
-        return fallbackUser;
+        tgUser = mockUser;
+        tgUserId = mockUser.id;
+        console.log('✅ Mock-пользователь:', tgUser);
+        return tgUser;
         
     } catch (e) {
         console.warn('⚠️ Не удалось инициализировать Telegram:', e);

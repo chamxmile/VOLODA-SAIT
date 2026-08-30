@@ -17,8 +17,16 @@ function formatTime(seconds) {
 // УВЕЛИЧЕНИЕ СЧЁТЧИКА ПРОСЛУШИВАНИЙ
 // ============================================================
 
+let isPlayCounted = false;
+let playCheckInterval = null;
+
 async function updateTrackPlays(trackId) {
     if (!trackId) return;
+
+    if (isPlayCounted) {
+        console.log('⏭️ Счётчик уже учтён');
+        return;
+    }
     
     try {
         const lastPlay = localStorage.getItem(`play_${trackId}`);
@@ -44,7 +52,9 @@ async function updateTrackPlays(trackId) {
         if (updateError) throw updateError;
         
         localStorage.setItem(`play_${trackId}`, Date.now().toString());
-        console.log('📊 Счётчик прослушиваний увеличен для трека:', trackId, '→', currentPlays);
+        console.log('📊 Счётчик прослушиваний увеличен:', trackId, '→', currentPlays);
+        
+        isPlayCounted = true;
         
         updateTrackPlaysDisplay(trackId, currentPlays);
         
@@ -195,8 +205,27 @@ function initTrackPlayer() {
     if (!trackAudio) return;
 
     trackAudio.addEventListener('play', () => {
-        if (currentTrack && currentTrack.id) {
-            updateTrackPlays(currentTrack.id);
+        console.log('▶️ Событие play, текущий трек:', currentTrack);
+        
+        if (playCheckInterval) {
+            clearInterval(playCheckInterval);
+            playCheckInterval = null;
+        }
+        
+        playCheckInterval = setInterval(() => {
+            if (trackAudio && trackAudio.currentTime >= 10 && !isPlayCounted && currentTrack && currentTrack.id) {
+                console.log('✅ Трек играет больше 3 секунд, увеличиваем счётчик');
+                updateTrackPlays(currentTrack.id);
+                clearInterval(playCheckInterval);
+                playCheckInterval = null;
+            }
+        }, 1000);
+    });
+    
+    trackAudio.addEventListener('pause', () => {
+        if (playCheckInterval) {
+            clearInterval(playCheckInterval);
+            playCheckInterval = null;
         }
     });
 
@@ -220,6 +249,11 @@ function initTrackPlayer() {
 
     trackAudio.addEventListener('ended', () => {
         isTrackPlaying = false;
+        isPlayCounted = false;
+        if (playCheckInterval) {
+            clearInterval(playCheckInterval);
+            playCheckInterval = null;
+        }
         updateTrackPlayIcon(false);
         updateMiniPlayerPlayIcon(false);
     });
@@ -275,7 +309,7 @@ function initTrackPlayer() {
         shareBtn.addEventListener('click', () => {
             if (!currentTrack) return;
             
-            const botUsername = 'YourBotUsername';
+            const botUsername = 'demkawqbot';
             const shareUrl = `https://t.me/${botUsername}?start=track_${currentTrack.id}`;
             const shareText = `🎵 ${currentTrack.title} — ${currentTrack.artist_name}\nСлушай на DB Sound!\n${shareUrl}`;
             
@@ -324,6 +358,12 @@ function updateTrackPlayIcon(isPlaying) {
 
 function openTrackPage(track) {
     currentTrack = track;
+    isPlayCounted = false;
+    
+    if (playCheckInterval) {
+        clearInterval(playCheckInterval);
+        playCheckInterval = null;
+    }
     
     const title = document.getElementById('trackPageTitle');
     const artistEl = document.getElementById('trackPageArtist');
@@ -334,8 +374,38 @@ function openTrackPage(track) {
     
     if (title) title.textContent = track.title || 'Без названия';
     
-    // 🔥 ФОРМИРУЕМ СТРОКУ С ИСПОЛНИТЕЛЯМИ И ФИТАМИ
     let artistDisplay = track.artist_name || 'Неизвестный исполнитель';
+    if (artistEl) artistEl.textContent = artistDisplay;
+    
+    // 🔥 ПОКАЗЫВАЕМ СКЕЛЕТОН, ПОКА ЗАГРУЖАЕТСЯ АКТУАЛЬНОЕ ЗНАЧЕНИЕ
+    if (playsEl) {
+        playsEl.innerHTML = `<span class="skeleton skeleton-md"></span>`;
+    }
+    
+    // 🔥 ЗАГРУЖАЕМ АКТУАЛЬНОЕ ЗНАЧЕНИЕ ИЗ БД
+    if (track.id) {
+        supabaseClient
+        .from('tracks')
+        .select('plays')
+        .eq('id', track.id)
+        .single()
+        .then(({ data, error }) => {
+            if (!error && data && playsEl) {
+                const plays = data.plays || 0;
+                playsEl.textContent = `${plays} ${getPlaysText(plays)}`;
+                // 🔥 ДОБАВЛЯЕМ КЛАСС ДЛЯ ПЛАВНОГО ПОЯВЛЕНИЯ
+                playsEl.classList.add('fade-in');
+                updateTrackPlaysDisplay(track.id, plays);
+            }
+        })
+        .catch(() => {
+            if (playsEl) {
+                const plays = track.plays || 0;
+                playsEl.textContent = `${plays} ${getPlaysText(plays)}`;
+                playsEl.classList.add('fade-in');
+            }
+        });
+}
     
     if (track.feat_ids && track.feat_ids.length > 0) {
         loadFeatNames(track.feat_ids).then(featNames => {
@@ -347,11 +417,6 @@ function openTrackPage(track) {
     }
     
     if (artistEl) artistEl.textContent = artistDisplay;
-    
-    if (playsEl) {
-        const plays = track.plays || 0;
-        playsEl.textContent = `${plays} ${getPlaysText(plays)}`;
-    }
     
     if (cover) {
         cover.src = track.cover_url || 'firstpage/cover.png';
