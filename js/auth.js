@@ -38,19 +38,40 @@ function initTelegram() {
                 console.log('✅ Telegram User:', tgUser);
                 return tgUser;
             }
+            
+            // ⚠️ НА ПК: пробуем получить пользователя через tg.initData
+            if (tg.initData) {
+                console.log('ℹ️ Пользователь не определён, но initData есть:', tg.initData);
+                // Пробуем распарсить initData
+                const params = new URLSearchParams(tg.initData);
+                const userData = params.get('user');
+                if (userData) {
+                    try {
+                        const user = JSON.parse(decodeURIComponent(userData));
+                        tgUser = user;
+                        tgUserId = user.id;
+                        console.log('✅ Пользователь получен из initData:', tgUser);
+                        return tgUser;
+                    } catch (e) {
+                        console.warn('⚠️ Не удалось распарсить user из initData');
+                    }
+                }
+            }
         }
-        // Mock-пользователь для локальной разработки
-        const mockUser = {
-            id: 123456789,
-            first_name: 'Александр',
+        
+        // Если пользователь не определён — показываем fallback
+        console.warn('⚠️ Пользователь не определён, используем fallback');
+        const fallbackUser = {
+            id: 0,
+            first_name: 'Гость',
             last_name: '',
-            username: 'alex_test',
+            username: null,
             language_code: 'ru'
         };
-        tgUser = mockUser;
-        tgUserId = mockUser.id;
-        console.log('⚠️ Используем mock-пользователя:', tgUser);
-        return tgUser;
+        tgUser = fallbackUser;
+        tgUserId = fallbackUser.id;
+        return fallbackUser;
+        
     } catch (e) {
         console.warn('⚠️ Не удалось инициализировать Telegram:', e);
         return null;
