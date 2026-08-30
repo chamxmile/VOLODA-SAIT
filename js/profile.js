@@ -146,7 +146,7 @@ async function loadMyTracks() {
             const item = document.createElement('div');
             item.className = 'my-track-item';
             
-            const coverUrl = track.cover_url || 'firstpage/cover.png';
+            const coverUrl = track.cover_url || 'oblozchki/obl2.png';
             const isOwner = track.owner_id === tgUserId;
             const isAdmin = currentUserPermissions.is_admin === true;
             

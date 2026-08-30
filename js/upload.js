@@ -5,6 +5,16 @@
 let selectedFeats = [];
 let isLoadingTracks = false;
 
+// ============================================================
+// СЛУЧАЙНАЯ ОБЛОЖКА
+// ============================================================
+
+function getRandomCover() {
+    const coverNumbers = [2, 3, 4, 5, 6];
+    const randomIndex = Math.floor(Math.random() * coverNumbers.length);
+    return `oblozchki/obl${coverNumbers[randomIndex]}.png`;
+}
+
 async function loadTracksToHome() {
     const trackList = document.getElementById('trackList');
     if (!trackList) return;
@@ -330,7 +340,8 @@ function renderTrackList(tracks, container) {
         card.className = 'track-card';
         card.dataset.trackId = track.id;
         
-        const coverUrl = track.cover_url || 'firstpage/cover.png';
+        // 🔥 ЕСЛИ НЕТ ОБЛОЖКИ — ИСПОЛЬЗУЕМ СЛУЧАЙНУЮ
+        const coverUrl = track.cover_url || getRandomCover();
         const playsCount = track.plays || 0;
         
         // 🔥 ФОРМИРУЕМ СТРОКУ С ИСПОЛНИТЕЛЯМИ И ФИТАМИ
@@ -344,7 +355,7 @@ function renderTrackList(tracks, container) {
         
         card.innerHTML = `
             <img src="${coverUrl}" alt="${track.title}" class="track-cover" 
-                 onerror="this.src='firstpage/cover.png'">
+                 onerror="this.src='${getRandomCover()}'">
             <div class="track-card-info">
                 <div class="track-card-title">${escapeHTML(track.title)}</div>
                 <div class="track-card-artist">
@@ -596,7 +607,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     .from('tracks')
                     .getPublicUrl(`audio/${audioFileName}`);
 
+                // ============================================================
+                // 🔥 ЗАГРУЗКА ОБЛОЖКИ (С СЛУЧАЙНОЙ, ЕСЛИ НЕТ ФАЙЛА)
+                // ============================================================
                 let coverUrl = null;
+
                 if (coverFile) {
                     statusDiv.textContent = '⏳ Загрузка обложки...';
                     statusDiv.style.color = '#ffeb3b';
@@ -618,7 +633,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.log('✅ Обложка загружена');
                     } else {
                         console.warn('⚠️ Не удалось загрузить обложку:', coverError);
+                        // Если не удалось загрузить — ставим случайную
+                        coverUrl = getRandomCover();
+                        console.log('🎲 Используем случайную обложку:', coverUrl);
                     }
+                } else {
+                    // Если пользователь не загрузил обложку — ставим случайную
+                    coverUrl = getRandomCover();
+                    console.log('🎲 Используем случайную обложку:', coverUrl);
                 }
 
                 statusDiv.textContent = '⏳ Сохранение данных...';
@@ -626,13 +648,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 console.log('🔍 selectedFeats ПЕРЕД сохранением:', selectedFeats);
 
-                // 🔥 СОХРАНЯЕМ ТОЛЬКО artistId (UUID) В feat_ids
+                // 🔥 СОХРАНЯЕМ ТРЕК
                 const track = {
                     owner_id: tgUserId,
                     title: title,
                     artist_name: artist,
                     audio_url: audioUrlData.publicUrl,
-                    cover_url: coverUrl,
+                    cover_url: coverUrl,  // ← теперь всегда есть обложка
                     lyrics: lyrics || '',
                     duration: 0,
                     status: 'active',
