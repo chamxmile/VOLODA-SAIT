@@ -12,14 +12,12 @@ const TELEGRAM_BOT_TOKEN = '8738300634:AAEpt28j3rvGyqibMI8yPWFZLJCVhxEi0lM';
 async function getUserAvatar(userId) {
     if (!userId) return null;
     
-    // Если это mock-пользователь — не пытаемся загрузить аватар
     if (userId === 123456789 || userId === 987654321) {
         console.log('ℹ️ Mock-пользователь, пропускаем загрузку аватара');
         return null;
     }
     
     try {
-        // Проверяем кеш
         const cached = localStorage.getItem(`avatar_${userId}`);
         if (cached) {
             const { url, timestamp } = JSON.parse(cached);
@@ -68,6 +66,7 @@ async function loadMyTracks() {
     const container = document.getElementById('myTracksList');
     const countEl = document.getElementById('myTracksCount');
     const statTracks = document.getElementById('statTracks');
+    const statPlays = document.getElementById('statPlays');
     
     if (!container || !tgUserId) return;
     
@@ -84,8 +83,15 @@ async function loadMyTracks() {
         
         console.log('✅ Загружено проектов:', data?.length || 0);
         
+        // 🔥 Считаем общее количество прослушиваний
+        let totalPlays = 0;
+        if (data && data.length > 0) {
+            totalPlays = data.reduce((sum, track) => sum + (track.plays || 0), 0);
+        }
+        
         if (countEl) countEl.textContent = data?.length || 0;
         if (statTracks) statTracks.textContent = data?.length || 0;
+        if (statPlays) statPlays.textContent = totalPlays;
         
         if (!data || data.length === 0) {
             container.innerHTML = `
@@ -114,6 +120,7 @@ async function loadMyTracks() {
                 <div class="my-track-info">
                     <div class="my-track-title">${escapeHTML(track.title)}</div>
                     <div class="my-track-artist">${escapeHTML(track.artist_name || 'Неизвестный исполнитель')}</div>
+                    <div class="my-track-plays">${track.plays || 0} прослушиваний</div>
                 </div>
                 <div class="my-track-actions">
                     <button class="my-track-btn my-track-btn-play" data-track-id="${track.id}">▶</button>
@@ -175,7 +182,6 @@ async function updateProfileAvatar(user) {
     if (avatarUrl) {
         avatarEl.innerHTML = `<img src="${avatarUrl}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">`;
     } else {
-        // Показываем инициалы
         const firstName = user.first_name || '';
         const lastName = user.last_name || '';
         const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || '👤';
@@ -255,142 +261,299 @@ async function deleteTrack(track) {
 }
 
 // ============================================================
-// РЕДАКТИРОВАНИЕ ТРЕКА (МОДАЛЬНОЕ ОКНО)
+// ЗАГРУЗКА ИСПОЛНИТЕЛЕЙ ДЛЯ РЕДАКТИРОВАНИЯ ФИТОВ
+// ============================================================
+
+async function loadArtistsForEditFeats() {
+    const list = document.getElementById('editFeatList');
+    if (!list) return;
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('artists')
+            .select('name, id')
+            .order('name');
+        
+        if (error) throw error;
+        
+        list.innerHTML = '';
+        data.forEach(artist => {
+            // 🔥 ПРОПУСКАЕМ СЕБЯ (текущего пользователя)
+            if (artist.user_id === tgUserId) {
+                return; // ← не добавляем себя в список фитов
+            }
+            const option = document.createElement('option');
+            option.value = artist.name;
+            option.dataset.artistId = artist.id;
+            list.appendChild(option);
+        });
+    } catch (e) {
+        console.error('❌ Ошибка загрузки исполнителей:', e);
+    }
+}
+
+// ============================================================
+// РЕДАКТИРОВАНИЕ ТРЕКА (МОДАЛЬНОЕ ОКНО С ФИТАМИ)
 // ============================================================
 
 function openEditModal(track) {
-    const modal = document.createElement('div');
-    modal.className = 'edit-modal-overlay';
-    modal.id = 'editModal';
+    // Загружаем текущие фиты трека
+    let selectedEditFeats = [];
     
-    modal.innerHTML = `
-        <div class="edit-modal">
-            <div class="edit-modal-header">
-                <h2>Редактировать трек</h2>
-                <button class="edit-modal-close" id="editModalClose">✕</button>
-            </div>
-            <div class="edit-modal-body">
-                <div class="form-group">
-                    <label>Название</label>
-                    <input type="text" id="editTitle" value="${escapeHTML(track.title)}">
-                </div>
-                <div class="form-group">
-                    <label>Исполнитель</label>
-                    <input type="text" id="editArtist" value="${escapeHTML(track.artist_name || '')}">
-                </div>
-                <div class="form-group">
-                    <label>Текст</label>
-                    <textarea id="editLyrics" rows="6">${escapeHTML(track.lyrics || '')}</textarea>
-                </div>
-                <div class="form-group">
-                    <label>Обложка</label>
-                    <input type="file" accept=".jpg,.jpeg,.png,.webp" id="editCover">
-                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Оставьте пустым, чтобы не менять</p>
-                </div>
-                <div class="form-group">
-                    <label>Аудиофайл</label>
-                    <input type="file" accept=".mp3,.wav,.m4a,.flac" id="editAudio">
-                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Оставьте пустым, чтобы не менять</p>
-                </div>
-            </div>
-            <div class="edit-modal-footer">
-                <button class="edit-modal-btn cancel" id="editCancel">Отмена</button>
-                <button class="edit-modal-btn save" id="editSave">Сохранить</button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
-    
-    const closeModal = () => {
-        modal.remove();
-        document.body.style.overflow = '';
-    };
-    
-    document.getElementById('editModalClose').addEventListener('click', closeModal);
-    document.getElementById('editCancel').addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-    });
-    
-    document.getElementById('editSave').addEventListener('click', async () => {
-        const title = document.getElementById('editTitle').value.trim();
-        const artist = document.getElementById('editArtist').value.trim();
-        const lyrics = document.getElementById('editLyrics').value.trim();
-        const coverFile = document.getElementById('editCover').files[0];
-        const audioFile = document.getElementById('editAudio').files[0];
-        
-        if (!title) {
-            alert('Введите название');
-            return;
-        }
-        
+    // Загружаем имена фитов для отображения
+    async function loadEditFeatNames() {
+        const featIds = track.feat_ids || [];
+        if (featIds.length === 0) return [];
         try {
-            const updates = {
-                title: title,
-                artist_name: artist,
-                lyrics: lyrics
-            };
-            
-            if (coverFile) {
-                const coverExt = coverFile.name.split('.').pop();
-                const coverFileName = `cover_${Date.now()}_${tgUserId}.${coverExt}`;
-                const { data: coverData, error: coverError } = await supabaseClient.storage
-                    .from('tracks')
-                    .upload(`covers/${coverFileName}`, coverFile, {
-                        contentType: coverFile.type,
-                        cacheControl: '3600'
-                    });
-                
-                if (!coverError) {
-                    const { data: coverUrlData } = supabaseClient.storage
-                        .from('tracks')
-                        .getPublicUrl(`covers/${coverFileName}`);
-                    updates.cover_url = coverUrlData.publicUrl;
-                }
-            }
-            
-            if (audioFile) {
-                const audioExt = audioFile.name.split('.').pop();
-                const audioFileName = `track_${Date.now()}_${tgUserId}.${audioExt}`;
-                const { data: audioData, error: audioError } = await supabaseClient.storage
-                    .from('tracks')
-                    .upload(`audio/${audioFileName}`, audioFile, {
-                        contentType: audioFile.type,
-                        cacheControl: '3600'
-                    });
-                
-                if (!audioError) {
-                    const { data: audioUrlData } = supabaseClient.storage
-                        .from('tracks')
-                        .getPublicUrl(`audio/${audioFileName}`);
-                    updates.audio_url = audioUrlData.publicUrl;
-                }
-            }
-            
-            const { error } = await supabaseClient
-                .from('tracks')
-                .update(updates)
-                .eq('id', track.id)
-                .eq('owner_id', tgUserId);
-            
+            const { data, error } = await supabaseClient
+                .from('artists')
+                .select('name, id')
+                .in('id', featIds);
             if (error) throw error;
+            return data || [];
+        } catch (e) {
+            console.warn('⚠️ Не удалось загрузить фиты:', e);
+            return [];
+        }
+    }
+    
+    // Рендер фитов в модалке
+    function renderEditFeatsList() {
+        const container = document.getElementById('editFeatsList');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        selectedEditFeats.forEach((feat, index) => {
+            const el = document.createElement('span');
+            el.className = 'feat-tag';
+            el.innerHTML = `
+                ${feat.name}
+                <button class="feat-remove" data-index="${index}">✕</button>
+            `;
+            container.appendChild(el);
+        });
+        
+        container.querySelectorAll('.feat-remove').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.dataset.index);
+                selectedEditFeats.splice(index, 1);
+                renderEditFeatsList();
+            });
+        });
+    }
+    
+    // Загружаем фиты и открываем модалку
+    loadEditFeatNames().then(feats => {
+        selectedEditFeats = feats.map(f => ({ name: f.name, id: f.id }));
+        
+        const modal = document.createElement('div');
+        modal.className = 'edit-modal-overlay';
+        modal.id = 'editModal';
+        
+        modal.innerHTML = `
+            <div class="edit-modal">
+                <div class="edit-modal-header">
+                    <h2>Редактировать трек</h2>
+                    <button class="edit-modal-close" id="editModalClose">✕</button>
+                </div>
+                <div class="edit-modal-body">
+                    <div class="form-group">
+                        <label>Название</label>
+                        <input type="text" id="editTitle" value="${escapeHTML(track.title)}">
+                    </div>
+                    <div class="form-group">
+                        <label>Исполнитель</label>
+                        <input type="text" id="editArtist" value="${escapeHTML(track.artist_name || '')}" readonly style="cursor: default; opacity: 0.8; background: var(--card-light);">
+                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+                            ⚡ Исполнитель нельзя изменить
+                        </p>
+                    </div>
+                    <div class="form-group">
+                        <label>Фиты (соисполнители)</label>
+                        <div id="editFeatsContainer">
+                            <div class="feat-item">
+                                <input type="text" id="editFeatInput" placeholder="Введите имя соисполнителя" list="editFeatList">
+                                <button type="button" id="editAddFeatBtn" class="add-feat-btn">+</button>
+                            </div>
+                            <div id="editFeatsList" class="feats-list"></div>
+                            <datalist id="editFeatList"></datalist>
+                        </div>
+                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+                            Добавьте или удалите соисполнителей
+                        </p>
+                    </div>
+                    <div class="form-group">
+                        <label>Текст</label>
+                        <textarea id="editLyrics" rows="6">${escapeHTML(track.lyrics || '')}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Обложка</label>
+                        <input type="file" accept=".jpg,.jpeg,.png,.webp" id="editCover">
+                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Оставьте пустым, чтобы не менять</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Аудиофайл</label>
+                        <input type="file" accept=".mp3,.wav,.m4a,.flac" id="editAudio">
+                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Оставьте пустым, чтобы не менять</p>
+                    </div>
+                </div>
+                <div class="edit-modal-footer">
+                    <button class="edit-modal-btn cancel" id="editCancel">Отмена</button>
+                    <button class="edit-modal-btn save" id="editSave">Сохранить</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        document.body.style.overflow = 'hidden';
+        
+        // Отрисовываем фиты
+        renderEditFeatsList();
+        
+        // Загружаем список исполнителей для фитов
+        loadArtistsForEditFeats();
+        
+        // Закрытие
+        const closeModal = () => {
+            modal.remove();
+            document.body.style.overflow = '';
+        };
+        
+        document.getElementById('editModalClose').addEventListener('click', closeModal);
+        document.getElementById('editCancel').addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+        
+        // Добавление фита
+        const editFeatInput = document.getElementById('editFeatInput');
+        const editAddFeatBtn = document.getElementById('editAddFeatBtn');
+        
+        if (editAddFeatBtn && editFeatInput) {
+            editAddFeatBtn.addEventListener('click', () => {
+                const name = editFeatInput.value.trim();
+                if (!name) return;
+                if (selectedEditFeats.some(f => f.name === name)) {
+                    alert('Этот исполнитель уже добавлен');
+                    return;
+                }
+                
+                const options = document.querySelectorAll('#editFeatList option');
+                let found = null;
+                options.forEach(opt => {
+                    if (opt.value === name) {
+                        found = { name: opt.value, id: parseInt(opt.dataset.artistId) };
+                    }
+                });
+                
+                if (found) {
+                    selectedEditFeats.push(found);
+                    renderEditFeatsList();
+                    editFeatInput.value = '';
+                } else {
+                    createNewArtist(name).then(artist => {
+                        if (artist) {
+                            selectedEditFeats.push({ name: artist.name, id: artist.id });
+                            renderEditFeatsList();
+                            const list = document.getElementById('editFeatList');
+                            if (list) {
+                                const opt = document.createElement('option');
+                                opt.value = artist.name;
+                                opt.dataset.artistId = artist.id;
+                                list.appendChild(opt);
+                            }
+                            editFeatInput.value = '';
+                        }
+                    });
+                }
+            });
             
-            console.log('✅ Трек обновлён');
-            closeModal();
+            editFeatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    editAddFeatBtn.click();
+                }
+            });
+        }
+        
+        // Сохранение
+        document.getElementById('editSave').addEventListener('click', async () => {
+            const title = document.getElementById('editTitle').value.trim();
+            const lyrics = document.getElementById('editLyrics').value.trim();
+            const coverFile = document.getElementById('editCover').files[0];
+            const audioFile = document.getElementById('editAudio').files[0];
             
-            await loadMyTracks();
-            await loadTracksToHome();
-            
-            if (currentTrack && currentTrack.id === track.id) {
-                openTrackPage(track);
+            if (!title) {
+                alert('Введите название');
+                return;
             }
             
-        } catch (e) {
-            console.error('❌ Ошибка сохранения:', e);
-            alert('Ошибка сохранения: ' + e.message);
-        }
+            try {
+                const updates = {
+                    title: title,
+                    lyrics: lyrics,
+                    feat_ids: selectedEditFeats.map(f => f.id).filter(id => id)
+                };
+                
+                if (coverFile) {
+                    const coverExt = coverFile.name.split('.').pop();
+                    const coverFileName = `cover_${Date.now()}_${tgUserId}.${coverExt}`;
+                    const { data: coverData, error: coverError } = await supabaseClient.storage
+                        .from('tracks')
+                        .upload(`covers/${coverFileName}`, coverFile, {
+                            contentType: coverFile.type,
+                            cacheControl: '3600'
+                        });
+                    
+                    if (!coverError) {
+                        const { data: coverUrlData } = supabaseClient.storage
+                            .from('tracks')
+                            .getPublicUrl(`covers/${coverFileName}`);
+                        updates.cover_url = coverUrlData.publicUrl;
+                    }
+                }
+                
+                if (audioFile) {
+                    const audioExt = audioFile.name.split('.').pop();
+                    const audioFileName = `track_${Date.now()}_${tgUserId}.${audioExt}`;
+                    const { data: audioData, error: audioError } = await supabaseClient.storage
+                        .from('tracks')
+                        .upload(`audio/${audioFileName}`, audioFile, {
+                            contentType: audioFile.type,
+                            cacheControl: '3600'
+                        });
+                    
+                    if (!audioError) {
+                        const { data: audioUrlData } = supabaseClient.storage
+                            .from('tracks')
+                            .getPublicUrl(`audio/${audioFileName}`);
+                        updates.audio_url = audioUrlData.publicUrl;
+                    }
+                }
+                
+                const { error } = await supabaseClient
+                    .from('tracks')
+                    .update(updates)
+                    .eq('id', track.id)
+                    .eq('owner_id', tgUserId);
+                
+                if (error) throw error;
+                
+                console.log('✅ Трек обновлён');
+                closeModal();
+                
+                await loadMyTracks();
+                await loadTracksToHome();
+                
+                if (currentTrack && currentTrack.id === track.id) {
+                    openTrackPage(track);
+                }
+                
+            } catch (e) {
+                console.error('❌ Ошибка сохранения:', e);
+                alert('Ошибка сохранения: ' + e.message);
+            }
+        });
     });
 }
 

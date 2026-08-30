@@ -83,12 +83,9 @@ function initTelegram() {
 
 async function createArtist(user) {
     if (!user || !user.id) return null;
-    
-    // Не создаём для гостей
     if (user.id === 0 || user.id === 123456789) return null;
     
     try {
-        // Проверяем, есть ли уже исполнитель
         const { data, error } = await supabaseClient
             .from('artists')
             .select('*')
@@ -100,10 +97,13 @@ async function createArtist(user) {
             return data;
         }
         
-        // Создаём нового исполнителя
+        // 🔥 Ищем псевдоним в белом списке
+        const whitelistEntry = WHITE_LIST.find(u => u.id === user.id);
+        const artistName = whitelistEntry?.name || user.first_name || 'Гость';
+        
         const newArtist = {
             user_id: user.id,
-            name: user.first_name || 'Гость',
+            name: artistName,  // ← псевдоним из белого списка
             username: user.username || null
         };
         

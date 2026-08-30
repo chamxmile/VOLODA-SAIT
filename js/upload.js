@@ -127,6 +127,10 @@ async function loadArtistsForFeats() {
         
         featList.innerHTML = '';
         data.forEach(artist => {
+            // 🔥 ПРОПУСКАЕМ СЕБЯ (текущего пользователя)
+            if (artist.user_id === tgUserId) {
+                return; // ← не добавляем себя в список фитов
+            }
             const option = document.createElement('option');
             option.value = artist.name;
             option.dataset.userId = artist.user_id || '';
@@ -366,45 +370,44 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. АВТОПОДСТАНОВКА ИМЕНИ ИСПОЛНИТЕЛЯ
     // ============================================================
     
-    function setDefaultArtist() {
-        if (!artistInput) return;
-        
-        // Пробуем получить имя из tgUser
-        let name = '';
-        if (tgUser) {
-            name = tgUser.first_name || '';
-            if (tgUser.last_name) {
-                name += ' ' + tgUser.last_name;
-            }
-        }
-        
-        // Если имя не определено, пробуем из базы данных
-        if (!name.trim() && tgUserId && tgUserId !== 0) {
-            supabaseClient
-                .from('users')
-                .select('first_name')
-                .eq('telegram_user_id', tgUserId)
-                .maybeSingle()
-                .then(({ data, error }) => {
-                    if (data && data.first_name) {
-                        artistInput.value = data.first_name;
-                        console.log('✅ Имя исполнителя загружено из БД:', data.first_name);
-                    } else {
-                        artistInput.value = 'chamxmile';
-                        console.log('ℹ️ Имя не найдено в БД, используем chamxmile');
-                    }
-                })
-                .catch(() => {
-                    artistInput.value = 'chamxmile';
-                });
-        } else if (name.trim()) {
-            artistInput.value = name.trim();
-            console.log('✅ Имя исполнителя из tgUser:', name.trim());
-        } else {
-            artistInput.value = 'chamxmile';
-            console.log('ℹ️ Используем имя по умолчанию: chamxmile');
+   function setDefaultArtist() {
+    if (!artistInput) return;
+    
+    // 🔥 ПРОБУЕМ ПОЛУЧИТЬ ПСЕВДОНИМ ИЗ ТАБЛИЦЫ artists
+    if (tgUserId && tgUserId !== 0) {
+        supabaseClient
+            .from('artists')
+            .select('name')
+            .eq('user_id', tgUserId)
+            .maybeSingle()
+            .then(({ data, error }) => {
+                if (data && data.name) {
+                    artistInput.value = data.name;
+                    console.log('✅ Псевдоним исполнителя из artists:', data.name);
+                } else {
+                    // Если псевдонима нет — используем имя из Telegram
+                    fallbackArtistName();
+                }
+            })
+            .catch(() => {
+                fallbackArtistName();
+            });
+    } else {
+        fallbackArtistName();
+    }
+}
+
+function fallbackArtistName() {
+    if (!artistInput) return;
+    let name = '';
+    if (tgUser) {
+        name = tgUser.first_name || '';
+        if (tgUser.last_name) {
+            name += ' ' + tgUser.last_name;
         }
     }
+    artistInput.value = name.trim() || 'chamxmile';
+}
     
     // Вызываем автоподстановку с задержкой, чтобы tgUser успел загрузиться
     setTimeout(setDefaultArtist, 500);
