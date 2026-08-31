@@ -51,28 +51,17 @@ function enableFullscreen() {
 }
 
 // ============================================================
-// PRELOADER С РЕАЛЬНЫМ ПРОГРЕССОМ
+// PRELOADER С ПЛАВНЫМ ПРОГРЕССОМ
 // ============================================================
 
-let preloaderProgress = 0;
+let preloaderProgress = 0;        // текущее отображаемое значение (0-100)
+let preloaderTarget = 0;          // целевое значение (куда должны прийти)
 let preloaderSteps = [];
 let preloaderStepIndex = 0;
+let preloaderAnimId = null;       // ID requestAnimationFrame
+let preloaderLastTime = 0;
 
-function showPreloader() {
-    const preloader = document.getElementById('appPreloader');
-    if (preloader) {
-        preloader.classList.remove('hidden');
-    }
-}
-
-function hidePreloader() {
-    const preloader = document.getElementById('appPreloader');
-    if (preloader) {
-        preloader.classList.add('hidden');
-    }
-}
-
-// Шаги загрузки (реальные события)
+// Шаги загрузки (реальные события) — НЕ МЕНЯЕМ
 function initPreloaderSteps() {
     preloaderSteps = [
         { name: 'Инициализация', weight: 5 },
@@ -88,7 +77,79 @@ function initPreloaderSteps() {
     ];
     preloaderStepIndex = 0;
     preloaderProgress = 0;
+    preloaderTarget = 0;
     updatePreloaderUI();
+}
+
+// Установка целевого значения (вызывается из этапов)
+function setPreloaderTarget(value) {
+    // Не даём target стать меньше текущего прогресса
+    if (value < preloaderTarget) return;
+    
+    // Ограничиваем 0-100
+    preloaderTarget = Math.min(100, Math.max(0, value));
+    
+    // Запускаем анимацию, если она не запущена
+    if (!preloaderAnimId && preloaderTarget > preloaderProgress) {
+        preloaderLastTime = performance.now();
+        preloaderAnimId = requestAnimationFrame(animatePreloader);
+    }
+}
+
+// Плавная анимация прогресса
+function animatePreloader(timestamp) {
+    // Вычисляем deltaTime (секунды)
+    const deltaTime = Math.min((timestamp - preloaderLastTime) / 1000, 0.1);
+    preloaderLastTime = timestamp;
+    
+    // Скорость интерполяции — чем дальше от target, тем быстрее
+    const diff = preloaderTarget - preloaderProgress;
+    
+    if (Math.abs(diff) < 0.01) {
+        // Достигли target — устанавливаем точно
+        preloaderProgress = preloaderTarget;
+        updatePreloaderUI();
+        preloaderAnimId = null;
+        
+        // Если достигли 100% — завершаем
+        if (preloaderProgress >= 100) {
+            completePreloader();
+        }
+        return;
+    }
+    
+    // Плавное приближение с учётом времени
+    // Скорость: 1.8 — чем выше, тем быстрее догоняет
+    const speed = 1.8;
+    const step = diff * speed * deltaTime;
+    
+    // Если шаг слишком маленький, но diff всё ещё есть — форсируем
+    if (Math.abs(step) < 0.01 && Math.abs(diff) > 0.01) {
+        preloaderProgress += Math.sign(diff) * 0.1;
+    } else {
+        preloaderProgress += step;
+    }
+    
+    // Не даём перескочить target
+    if ((diff > 0 && preloaderProgress > preloaderTarget) ||
+        (diff < 0 && preloaderProgress < preloaderTarget)) {
+        preloaderProgress = preloaderTarget;
+    }
+    
+    updatePreloaderUI();
+    
+    // Продолжаем анимацию, если не достигли target
+    if (Math.abs(preloaderTarget - preloaderProgress) > 0.01) {
+        preloaderAnimId = requestAnimationFrame(animatePreloader);
+    } else {
+        preloaderProgress = preloaderTarget;
+        updatePreloaderUI();
+        preloaderAnimId = null;
+        
+        if (preloaderProgress >= 100) {
+            completePreloader();
+        }
+    }
 }
 
 function updatePreloaderProgress(stepName) {
@@ -96,20 +157,19 @@ function updatePreloaderProgress(stepName) {
     let found = false;
     for (let i = 0; i < preloaderSteps.length; i++) {
         if (preloaderSteps[i].name === stepName) {
-            preloaderProgress += preloaderSteps[i].weight;
-            if (preloaderProgress > 100) preloaderProgress = 100;
+            // Добавляем вес этого шага к target
+            const newTarget = Math.min(100, preloaderTarget + preloaderSteps[i].weight);
+            setPreloaderTarget(newTarget);
             found = true;
             break;
         }
     }
     
     // Если шаг не найден, добавляем +2%
-    if (!found && preloaderProgress < 90) {
-        preloaderProgress += 2;
-        if (preloaderProgress > 90) preloaderProgress = 90;
+    if (!found && preloaderTarget < 90) {
+        const newTarget = Math.min(90, preloaderTarget + 2);
+        setPreloaderTarget(newTarget);
     }
-    
-    updatePreloaderUI();
 }
 
 function updatePreloaderUI() {
@@ -117,13 +177,15 @@ function updatePreloaderUI() {
     const currentTime = document.getElementById('preloaderTimeCurrent');
     const totalTime = document.getElementById('preloaderTimeTotal');
     
+    const displayProgress = Math.min(preloaderProgress, 100);
+    
     if (fill) {
-        fill.style.width = Math.min(preloaderProgress, 100) + '%';
+        fill.style.width = displayProgress + '%';
     }
     
     if (currentTime) {
         const totalSeconds = 30;
-        const currentSeconds = Math.floor((preloaderProgress / 100) * totalSeconds);
+        const currentSeconds = Math.floor((displayProgress / 100) * totalSeconds);
         const minutes = Math.floor(currentSeconds / 60);
         const secs = currentSeconds % 60;
         currentTime.textContent = `${minutes}:${String(secs).padStart(2, '0')}`;
@@ -134,10 +196,41 @@ function updatePreloaderUI() {
     }
 }
 
-function completePreloader() {
-    preloaderProgress = 100;
+function showPreloader() {
+    const preloader = document.getElementById('appPreloader');
+    if (preloader) {
+        preloader.classList.remove('hidden');
+    }
+    // Сброс прогресса при показе
+    preloaderProgress = 0;
+    preloaderTarget = 0;
+    if (preloaderAnimId) {
+        cancelAnimationFrame(preloaderAnimId);
+        preloaderAnimId = null;
+    }
     updatePreloaderUI();
+}
+
+function hidePreloader() {
+    const preloader = document.getElementById('appPreloader');
+    if (preloader) {
+        preloader.classList.add('hidden');
+    }
+    // Останавливаем анимацию
+    if (preloaderAnimId) {
+        cancelAnimationFrame(preloaderAnimId);
+        preloaderAnimId = null;
+    }
+}
+
+function completePreloader() {
+    // Если ещё не 100% — устанавливаем и ждём
+    if (preloaderTarget < 100) {
+        setPreloaderTarget(100);
+        return;
+    }
     
+    // Если уже 100% — скрываем с задержкой
     setTimeout(() => {
         hidePreloader();
     }, 400);
@@ -379,8 +472,9 @@ async function initApp() {
         }
     }
     
-    updatePreloaderProgress('Готово');
-    completePreloader();
+    // Добавь в самом конце:
+    // Запускаем плавное завершение
+    setPreloaderTarget(100);
     
     console.log('✅ DB Sound инициализирован');
     console.log('👤 Пользователь:', user);
