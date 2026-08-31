@@ -12,13 +12,14 @@
     --muted: #8c8c95;
     --border: #29292e;
     --accent: #ffffff;
-    --nav-height: 72px;
+    --nav-height: 72px; 
     --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 body {
     min-height: 100vh;
-    background: var(--background);
+    background: linear-gradient(90deg, #0b0b10, #200b0b);
+    background-attachment: fixed;
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
     overflow-x: hidden;
@@ -38,37 +39,54 @@ body {
    ============================================================ */
 .bottom-nav {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: calc(var(--nav-height) + var(--safe-bottom));
-    padding-bottom: var(--safe-bottom);
-    background: rgba(11, 11, 13, 0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + var(--safe-bottom));
+
+    height: 64px;
+    padding: 4px 8px;
+
     display: flex;
     justify-content: space-around;
     align-items: center;
+
+    background: rgba(20, 20, 25, 0.72);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 22px;
+
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+
     z-index: 999;
-    padding: 0 8px;
 }
 
 .nav-btn {
     flex: 1;
+
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
-    background: none;
+
+    gap: 3px;
+
+    height: 100%;
+
+    background: transparent;
     border: none;
+
     color: var(--muted);
+
     font-size: 10px;
     font-weight: 500;
-    padding: 8px 4px;
+
+    padding: 2px 4px;
+
     cursor: pointer;
-    transition: color 0.2s ease;
+    transition: color 0.2s ease, transform 0.2s ease;
+
     -webkit-tap-highlight-color: transparent;
     user-select: none;
 }
@@ -186,8 +204,12 @@ body {
     align-items: center;
     gap: 16px;
     padding: 12px 16px;
-    background: var(--card);
+
+    background: transparent;
+    border: none;
+
     border-radius: 14px;
+
     cursor: pointer;
     transition: background 0.2s ease;
 }
@@ -448,23 +470,66 @@ body {
     .page-header h1 {
         font-size: 22px;
     }
-    
+
+    /* Исправление для bottom-nav на мобилках */
     .bottom-nav {
-        height: calc(64px + var(--safe-bottom));
-        padding-bottom: var(--safe-bottom);
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        border-radius: 0 !important;
+        width: 100% !important;
+        min-height: calc(var(--nav-height) + var(--safe-bottom)) !important;
+        height: auto !important;
+        background: rgba(11, 11, 13, 0.92) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
     }
-    
+
     .nav-btn svg {
         width: 20px;
         height: 20px;
     }
-    
+
     .nav-btn span {
         font-size: 9px;
     }
-    
+
     .upload-form {
         padding: 16px;
+    }
+
+    /* Мини-плеер на мобилках */
+    .mini-player {
+        padding: 4px 10px !important;
+        min-height: 44px !important;
+    }
+    
+    .mini-player-cover {
+        width: 28px !important;
+        height: 28px !important;
+    }
+    
+    .mini-player-title {
+        font-size: 11px !important;
+    }
+    
+    .mini-player-artist {
+        font-size: 9px !important;
+    }
+    
+    .mini-player-btn {
+        font-size: 14px !important;
+        padding: 2px 4px !important;
+    }
+    
+    .mini-player-fav {
+        font-size: 14px !important;
+    }
+    
+    .mini-player-play {
+        font-size: 16px !important;
+        padding: 2px 4px !important;
     }
 }
 
@@ -847,7 +912,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: var(--background);
+    background: linear-gradient(90deg, #0b0b10, #200b0b);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -1345,4 +1410,154 @@ body {
 
 #page-profile .profile-card {
     margin-top: 8px;
+}
+
+html,
+body {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    background: linear-gradient(90deg, #0b0b10 0%, #200b0b 100%) !important;
+}
+
+/* ============================================================
+   ЭКВАЛАЙЗЕР НА КАРТОЧКАХ ТРЕКОВ (МЕДЛЕННОЕ ЗАТУХАНИЕ)
+   ============================================================ */
+
+.track-equalizer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+    width: 32px;
+    height: 28px;
+    flex-shrink: 0;
+    transition: opacity 0.8s ease;
+}
+
+/* Полоски по умолчанию (скрыты) */
+.track-equalizer .eq-bar {
+    display: block;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--muted);
+    opacity: 0;
+    transform-origin: bottom;
+    height: 0px;
+    transform: scaleY(0);
+    transition: height 1.5s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 1.5s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.5s ease;
+}
+
+/* Активное состояние — полоски видны */
+.track-equalizer.active .eq-bar {
+    height: 8px;
+    background: linear-gradient(180deg, #e8e8e8, #a0a0a0);
+    opacity: 1;
+    transform: scaleY(1);
+    transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.3s ease,
+                opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.track-equalizer.active .eq-bar:nth-child(1) { height: 10px; }
+.track-equalizer.active .eq-bar:nth-child(2) { height: 18px; }
+.track-equalizer.active .eq-bar:nth-child(3) { height: 24px; }
+.track-equalizer.active .eq-bar:nth-child(4) { height: 14px; }
+.track-equalizer.active .eq-bar:nth-child(5) { height: 8px; }
+
+/* МЕДЛЕННОЕ ЗАТУХАНИЕ — полоски медленно опускаются вниз (3 секунды) */
+.track-equalizer.ended .eq-bar {
+    height: 2px !important;
+    opacity: 0.2 !important;
+    transform: scaleY(0.1) !important;
+    background: var(--muted) !important;
+    transition: height 3s cubic-bezier(0.4, 0, 0.2, 1) !important,
+                opacity 3s cubic-bezier(0.4, 0, 0.2, 1) !important,
+                transform 3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Плавное опускание при паузе (1.5 секунды) */
+.track-equalizer.stopping .eq-bar {
+    height: 0px !important;
+    opacity: 0 !important;
+    transform: scaleY(0) !important;
+    transition: height 1.5s cubic-bezier(0.4, 0, 0.2, 1) !important,
+                opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1) !important,
+                transform 1.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Во время затухания анимация полосок полностью останавливается */
+.track-equalizer.stopping .eq-bar,
+.track-equalizer.ended .eq-bar {
+    animation: none !important;
+}
+
+/* Финальное состояние после окончания трека */
+.track-equalizer.ended {
+    opacity: 1;
+}
+
+/* После паузы эквалайзер полностью исчезает */
+.track-equalizer.stopping {
+    opacity: 1;
+}
+
+/* Анимация запускается ТОЛЬКО если есть оба класса: active + track-playing */
+.track-playing .track-equalizer.active .eq-bar {
+    animation: equalizerBounce 2.5s ease-in-out infinite alternate;
+}
+
+.track-playing .track-equalizer.active .eq-bar:nth-child(1) { animation-delay: 0s; }
+.track-playing .track-equalizer.active .eq-bar:nth-child(2) { animation-delay: 0.2s; }
+.track-playing .track-equalizer.active .eq-bar:nth-child(3) { animation-delay: 0.4s; }
+.track-playing .track-equalizer.active .eq-bar:nth-child(4) { animation-delay: 0.6s; }
+.track-playing .track-equalizer.active .eq-bar:nth-child(5) { animation-delay: 0.8s; }
+
+/* Медленная и плавная анимация */
+@keyframes equalizerBounce {
+    0% {
+        transform: scaleY(0.15);
+        opacity: 0.2;
+    }
+    20% {
+        transform: scaleY(1.3);
+        opacity: 0.9;
+    }
+    40% {
+        transform: scaleY(0.3);
+        opacity: 0.4;
+    }
+    60% {
+        transform: scaleY(1.1);
+        opacity: 0.8;
+    }
+    80% {
+        transform: scaleY(0.4);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scaleY(0.15);
+        opacity: 0.2;
+    }
+}
+
+/* Обводка играющего трека */
+.track-card.active-track {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.track-card.active-track:active {
+    background: var(--card-light);
+}
+
+/* Когда трек играет — обводка чуть ярче */
+.track-playing .track-card.active-track {
+    border-color: rgba(255, 255, 255, 0.15);
 }

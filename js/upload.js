@@ -90,6 +90,11 @@ async function loadTracksToHome() {
         
         isLoadingTracks = false;
         renderTrackList(data, trackList);
+
+        // 🔥 Если есть текущий трек — обновляем его состояние
+       if (currentTrack) {
+          updateTrackEqualizers(isTrackPlaying ? currentTrack.id : null);
+    }
         
     } catch (e) {
         console.error('❌ Ошибка:', e);
@@ -320,10 +325,6 @@ async function loadFavoriteTracks() {
     }
 }
 */
-// ============================================================
-// РЕНДЕР СПИСКА ТРЕКОВ
-// ============================================================
-
 function renderTrackList(tracks, container) {
     container.innerHTML = '';
     tracks.forEach((track) => {
@@ -331,7 +332,15 @@ function renderTrackList(tracks, container) {
         card.className = 'track-card';
         card.dataset.trackId = track.id;
         
-        // 🔥 БЕРЁМ ОБЛОЖКУ ИЗ БД
+        // Проверяем, является ли этот трек текущим
+        const isCurrentTrack = currentTrack && currentTrack.id === track.id;
+        const isActive = isCurrentTrack;
+        
+        // Добавляем класс active-track если трек играет
+        if (isActive && isTrackPlaying) {
+            card.classList.add('active-track');
+        }
+        
         const coverUrl = track.cover_url || 'oblozchki/obl1.png';
         const playsCount = track.plays || 0;
         
@@ -340,41 +349,31 @@ function renderTrackList(tracks, container) {
             artistDisplay += ` feat. ${track._feat_names.join(', ')}`;
         }
         
-        const showSkeleton = isLoadingTracks;
+        const equalizerHTML = `
+            <div class="track-equalizer ${isActive ? 'active' : ''}">
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+            </div>
+        `;
         
         card.innerHTML = `
             <img src="${coverUrl}" alt="${track.title}" class="track-cover" 
                  onerror="this.src='oblozchki/obl1.png'">
             <div class="track-card-info">
                 <div class="track-card-title">${escapeHTML(track.title)}</div>
-                <div class="track-card-artist">
-                    ${showSkeleton 
-                        ? `<span class="skeleton skeleton-text" style="width:80px;"></span>` 
-                        : escapeHTML(artistDisplay)
-                    }
-                </div>
-                <div class="track-card-plays">
-                    ${showSkeleton 
-                        ? `<span class="skeleton skeleton-sm"></span>` 
-                        : `${playsCount} ${getPlaysText(playsCount)}`
-                    }
-                </div>
+                <div class="track-card-artist">${escapeHTML(artistDisplay)}</div>
+                <div class="track-card-plays">${playsCount} ${getPlaysText(playsCount)}</div>
             </div>
-            <button class="track-card-play" data-track-id="${track.id}">▶</button>
+            ${equalizerHTML}
         `;
         
         card.addEventListener('click', (e) => {
-            if (e.target.closest('.track-card-play')) return;
-            openTrackPage(track);
+            e.stopPropagation();
+            playTrackOnHome(track);
         });
-        
-        const playBtn = card.querySelector('.track-card-play');
-        if (playBtn) {
-            playBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openTrackPage(track);
-            });
-        }
         
         container.appendChild(card);
     });

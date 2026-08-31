@@ -52,40 +52,60 @@
     </div>
 </div>
 
-    <!-- ====== НАВИГАЦИЯ (НОВЫЙ ПОРЯДОК) ====== -->
+    <!-- ====== НАВИГАЦИЯ (С МИНИ-ПЛЕЕРОМ ВНУТРИ) ====== -->
 <nav class="bottom-nav" id="bottomNav">
-    <button class="nav-btn active" data-page="home">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/>
-        </svg>
-        <span>Главная</span>
-    </button>
-    <button class="nav-btn" data-page="player">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/>
-        </svg>
-        <span>ВОЛОДЯ</span>
-    </button>
-    <button class="nav-btn" data-page="upload" id="uploadNavBtn">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 5v14M5 12h14"/>
-        </svg>
-        <span>Загрузить</span>
-    </button>
-    <button class="nav-btn" data-page="favorites" id="favoritesNavBtn">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-        </svg>
-        <span>Избранное</span>
-    </button>
-    <!-- ====== КНОПКА АДМИНКИ (только для админа) ====== -->
-    <button class="nav-btn" data-page="admin" id="adminNavBtn" style="display:none;">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-        </svg>
-        <span>Админ</span>
-    </button>
+    <!-- ====== МИНИ-ПЛЕЕР (ВНУТРИ НАВИГАЦИИ) ====== -->
+    <div class="mini-player" id="miniPlayer" style="display:none;">
+        <div class="mini-player-inner">
+            <div class="mini-player-info">
+                <img src="firstpage/cover.png" alt="Cover" class="mini-player-cover" id="miniPlayerCover">
+                <div class="mini-player-meta">
+                    <div class="mini-player-title" id="miniPlayerTitle">Название трека</div>
+                    <div class="mini-player-artist" id="miniPlayerArtist">Исполнитель</div>
+                </div>
+            </div>
+            <div class="mini-player-controls">
+                <button class="mini-player-btn mini-player-fav" id="miniPlayerFavorite">♡</button>
+                <button class="mini-player-btn mini-player-play" id="miniPlayerPlay">▶</button>
+            </div>
+        </div>
+        <div class="mini-player-progress-fill" id="miniPlayerProgressFill"></div>
+    </div>
+
+    <!-- Кнопки навигации -->
+    <div class="nav-buttons">
+        <button class="nav-btn active" data-page="home">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/>
+            </svg>
+            <span>Главная</span>
+        </button>
+        <button class="nav-btn" data-page="player">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/>
+            </svg>
+            <span>ВОЛОДЯ</span>
+        </button>
+        <button class="nav-btn" data-page="upload" id="uploadNavBtn">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"/>
+            </svg>
+            <span>Загрузить</span>
+        </button>
+        <button class="nav-btn" data-page="favorites" id="favoritesNavBtn">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            <span>Избранное</span>
+        </button>
+        <button class="nav-btn" data-page="admin" id="adminNavBtn" style="display:none;">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+            <span>Админ</span>
+        </button>
+    </div>
 </nav>
 
     <!-- ====== СТРАНИЦЫ ====== -->
@@ -367,26 +387,6 @@
         </div>
 
     </div>
-
-    <!-- ====== МИНИ-ПЛЕЕР ВНИЗУ ====== -->
-    <div class="mini-player" id="miniPlayer" style="display:none;">
-        <div class="mini-player-info">
-            <img src="firstpage/cover.png" alt="Cover" class="mini-player-cover" id="miniPlayerCover">
-            <div class="mini-player-meta">
-                <div class="mini-player-title" id="miniPlayerTitle">Название трека</div>
-                <div class="mini-player-artist" id="miniPlayerArtist">Исполнитель</div>
-            </div>
-        </div>
-        <div class="mini-player-controls">
-            <button class="mini-player-btn" id="miniPlayerPrev">⏮</button>
-            <button class="mini-player-btn mini-player-play" id="miniPlayerPlay">▶</button>
-            <button class="mini-player-btn" id="miniPlayerNext">⏭</button>
-        </div>
-        <div class="mini-player-progress">
-            <div class="mini-player-progress-bar" id="miniPlayerProgressBar"></div>
-        </div>
-    </div>
-
 </div>
 
 <!-- Аудио для нового плеера -->

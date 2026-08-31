@@ -186,6 +186,73 @@ async function updateFavoriteButton(trackId) {
 }
 
 // ============================================================
+// ФУНКЦИИ ЭКВАЛАЙЗЕРА (ГЛОБАЛЬНЫЕ)
+// ============================================================
+
+function stopEqualizer(trackId = null) {
+    const selector = trackId
+        ? `.track-card[data-track-id="${trackId}"] .track-equalizer.active`
+        : '.track-equalizer.active';
+
+    const equalizers = document.querySelectorAll(selector);
+
+    equalizers.forEach(eq => {
+        eq.classList.remove('ended');
+        eq.classList.add('stopping');
+
+        setTimeout(() => {
+            if (!eq.classList.contains('stopping')) return;
+            eq.classList.remove('active', 'stopping');
+        }, 1600);
+    });
+}
+
+function endEqualizer(trackId = null) {
+    const selector = trackId
+        ? `.track-card[data-track-id="${trackId}"] .track-equalizer.active`
+        : '.track-equalizer.active';
+
+    const equalizers = document.querySelectorAll(selector);
+
+    equalizers.forEach(eq => {
+        eq.classList.remove('stopping');
+        eq.classList.add('ended');
+    });
+}
+
+function updateTrackEqualizers(activeTrackId) {
+    const allCards = document.querySelectorAll('.track-card');
+
+    allCards.forEach(card => {
+        const cardTrackId = card.dataset.trackId;
+        const eq = card.querySelector('.track-equalizer');
+
+        if (cardTrackId === String(activeTrackId)) {
+            card.classList.add('active-track');
+
+            if (eq) {
+                eq.classList.remove('stopping', 'ended');
+                eq.classList.add('active');
+            }
+
+            return;
+        }
+
+        // Другие треки: убираем active-track
+        card.classList.remove('active-track');
+
+        // Если эквалайзер не затухает — убираем active
+        if (
+            eq &&
+            !eq.classList.contains('stopping') &&
+            !eq.classList.contains('ended')
+        ) {
+            eq.classList.remove('active');
+        }
+    });
+}
+
+// ============================================================
 // ИНИЦИАЛИЗАЦИЯ ПЛЕЕРА
 // ============================================================
 
@@ -227,6 +294,23 @@ function initTrackPlayer() {
             clearInterval(playCheckInterval);
             playCheckInterval = null;
         }
+
+        // Если трек уже закончился — pause-анимацию не запускаем
+        if (trackAudio.ended) return;
+
+        const pausedTrackId = currentTrack?.id;
+
+        if (pausedTrackId) {
+            stopEqualizer(pausedTrackId);
+        }
+
+        const root = document.getElementById('root') || document.body;
+
+        setTimeout(() => {
+            if (trackAudio.paused && !trackAudio.ended) {
+                root.classList.remove('track-playing');
+            }
+        }, 1600);
     });
 
     trackAudio.addEventListener('timeupdate', () => {
@@ -248,65 +332,33 @@ function initTrackPlayer() {
     });
 
     trackAudio.addEventListener('ended', () => {
+        const finishedTrackId = currentTrack?.id;
+
         isTrackPlaying = false;
         isPlayCounted = false;
+
         if (playCheckInterval) {
             clearInterval(playCheckInterval);
             playCheckInterval = null;
         }
+
         updateTrackPlayIcon(false);
         updateMiniPlayerPlayIcon(false);
+
+        // Медленно затухаем эквалайзер завершённого трека
+        if (finishedTrackId) {
+            endEqualizer(finishedTrackId);
+        }
+
+        // Останавливаем bounce-анимацию
+        const root = document.getElementById('root') || document.body;
+        root.classList.remove('track-playing');
+
+        // active-track НЕ удаляем — последний прослушанный трек остаётся выделенным
     });
 
-    if (playBtn) {
-        playBtn.addEventListener('click', toggleTrackPlay);
-    }
-
-    if (progress) {
-        progress.addEventListener('input', () => {
-            if (!trackAudio.duration) return;
-            trackAudio.currentTime = (progress.value / 100) * trackAudio.duration;
-            progress.style.setProperty('--track-progress', `${progress.value}%`);
-        });
-    }
-
-    if (backBtn) {
-        backBtn.addEventListener('click', () => {
-            navigateTo('home');
-        });
-    }
-
-    if (favBtn) {
-        favBtn.addEventListener('click', async () => {
-            if (!currentTrack) return;
-            if (!tgUserId) {
-                alert('Войдите в аккаунт, чтобы добавлять в избранное');
-                return;
-            }
-            const result = await toggleFavorite(currentTrack.id);
-            if (result !== undefined) {
-                await updateFavoriteButton(currentTrack.id);
-            }
-        });
-    }
-
-    if (lyricsBtn && lyricsContainer) {
-        lyricsBtn.addEventListener('click', () => {
-            if (lyricsContainer.style.display === 'none') {
-                lyricsContainer.style.display = 'block';
-                lyricsBtn.textContent = '📝 Скрыть текст';
-                if (currentTrack && currentTrack.lyrics) {
-                    lyricsContent.textContent = currentTrack.lyrics;
-                }
-            } else {
-                lyricsContainer.style.display = 'none';
-                lyricsBtn.textContent = '📝 Текст';
-            }
-        });
-    }
-
     // ============================================================
-    // 🔥 ОБНОВЛЁННАЯ КНОПКА «ПОДЕЛИТЬСЯ» — ПРАВИЛЬНЫЙ ФОРМАТ
+    // КНОПКА «ПОДЕЛИТЬСЯ»
     // ============================================================
     
     if (shareBtn) {
@@ -314,12 +366,7 @@ function initTrackPlayer() {
             if (!currentTrack) return;
             
             const botUsername = 'demkawqbot';
-            
-            // 🔥 ПРАВИЛЬНЫЙ ФОРМАТ: используем ?start= для передачи параметра боту
-            // Бот получит /start track_<id> и сможет обработать
             const shareUrl = `https://t.me/${botUsername}?start=track_${currentTrack.id}`;
-            
-            // Формируем текст для отправки
             const shareText = `🎵 ${currentTrack.title} — ${currentTrack.artist_name || 'Неизвестный исполнитель'}\nСлушай на DB Sound!\n${shareUrl}`;
             
             if (navigator.share) {
@@ -332,7 +379,6 @@ function initTrackPlayer() {
                 navigator.clipboard.writeText(shareText).then(() => {
                     alert('🔗 Ссылка скопирована!\nОтправь её другу — он откроет трек в приложении.');
                 }).catch(() => {
-                    // Fallback: показываем ссылку для копирования
                     prompt('Скопируйте ссылку и отправьте другу:', shareText);
                 });
             }
@@ -342,31 +388,48 @@ function initTrackPlayer() {
     initTrackComments();
 }
 
+// ============================================================
+// TOGGLE PLAY (ГЛОБАЛЬНАЯ)
+// ============================================================
+
 function toggleTrackPlay() {
     if (!trackAudio) return;
+
     if (trackAudio.paused) {
-        trackAudio.play().catch(e => console.warn('Не удалось воспроизвести:', e));
-        isTrackPlaying = true;
+        trackAudio.play()
+            .then(() => {
+                isTrackPlaying = true;
+
+                document
+                    .querySelectorAll('.track-equalizer.stopping, .track-equalizer.ended')
+                    .forEach(eq => {
+                        eq.classList.remove('stopping', 'ended');
+                    });
+
+                if (currentTrack?.id) {
+                    updateTrackEqualizers(currentTrack.id);
+                }
+
+                const root = document.getElementById('root') || document.body;
+                root.classList.add('track-playing');
+
+                updateTrackPlayIcon(true);
+                updateMiniPlayerPlayIcon(true);
+            })
+            .catch(e => {
+                console.warn('Не удалось воспроизвести:', e);
+            });
+
     } else {
         trackAudio.pause();
         isTrackPlaying = false;
-    }
-    updateTrackPlayIcon(isTrackPlaying);
-    updateMiniPlayerPlayIcon(isTrackPlaying);
-}
-
-function updateTrackPlayIcon(isPlaying) {
-    const icon = document.getElementById('trackPlayIcon');
-    if (!icon) return;
-    if (isPlaying) {
-        icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
-    } else {
-        icon.innerHTML = '<polygon points="5,3 19,12 5,21"/>';
+        updateTrackPlayIcon(false);
+        updateMiniPlayerPlayIcon(false);
     }
 }
 
 // ============================================================
-// ОТКРЫТИЕ СТРАНИЦЫ ТРЕКА (С ФИТАМИ - ИСПРАВЛЕНО)
+// ОТКРЫТИЕ СТРАНИЦЫ ТРЕКА (БЕЗ АВТОЗАПУСКА)
 // ============================================================
 
 function openTrackPage(track) {
@@ -387,12 +450,10 @@ function openTrackPage(track) {
     
     if (title) title.textContent = track.title || 'Без названия';
     
-    // 🔥 ПОКАЗЫВАЕМ СКЕЛЕТОН ДЛЯ ИСПОЛНИТЕЛЯ
     if (artistEl) {
         artistEl.innerHTML = `<span class="skeleton skeleton-md" style="width:120px;"></span>`;
     }
     
-    // 🔥 ЗАГРУЖАЕМ ИМЕНА ФИТОВ И ОБНОВЛЯЕМ СТРОКУ
     async function updateArtistDisplay() {
         let artistDisplay = track.artist_name || 'Неизвестный исполнитель';
         
@@ -407,7 +468,6 @@ function openTrackPage(track) {
             artistEl.textContent = artistDisplay;
         }
         
-        // Обновляем Media Session
         if (navigator.mediaSession && audio) {
             navigator.mediaSession.metadata = new MediaMetadata({
                 title: track.title || 'Без названия',
@@ -424,15 +484,12 @@ function openTrackPage(track) {
         }
     }
     
-    // Вызываем загрузку фитов
     updateArtistDisplay();
     
-    // 🔥 ПОКАЗЫВАЕМ СКЕЛЕТОН ДЛЯ СЧЁТЧИКА
     if (playsEl) {
         playsEl.innerHTML = `<span class="skeleton skeleton-md"></span>`;
     }
     
-    // 🔥 ЗАГРУЖАЕМ АКТУАЛЬНОЕ ЗНАЧЕНИЕ СЧЁТЧИКА ИЗ БД
     if (track.id) {
         supabaseClient
             .from('tracks')
@@ -463,7 +520,6 @@ function openTrackPage(track) {
                 coverBg.style.backgroundImage = `url(${cover.src})`;
             }
         };
-        // 🔥 Если обложка не загрузилась — используем дефолтную
         cover.onerror = () => {
             cover.src = 'oblozchki/obl1.png';
             if (coverBg) {
@@ -476,10 +532,8 @@ function openTrackPage(track) {
         audio.src = track.audio_url;
         audio.load();
     } else if (audio) {
-        // 🔥 Если аудио нет — показываем сообщение
         audio.src = '';
         console.warn('⚠️ У трека нет аудиофайла');
-        // Показываем уведомление пользователю
         const playBtn = document.getElementById('trackPlayBtn');
         if (playBtn) {
             playBtn.style.opacity = '0.5';
@@ -488,7 +542,6 @@ function openTrackPage(track) {
     }
     
     updateMiniPlayer(track);
-    
     navigateTo('track');
     
     setTimeout(async () => {
@@ -499,19 +552,8 @@ function openTrackPage(track) {
         renderTrackComments();
     }, 300);
     
-    // 🔥 Автозапуск только если есть аудио
-    if (audio && track.audio_url) {
-        setTimeout(() => {
-            audio.play().catch(e => console.warn('Не удалось автозапустить:', e));
-            isTrackPlaying = true;
-            updateTrackPlayIcon(true);
-            updateMiniPlayerPlayIcon(true);
-        }, 400);
-    } else {
-        // Если аудио нет — показываем иконку паузы в неактивном состоянии
-        updateTrackPlayIcon(false);
-        updateMiniPlayerPlayIcon(false);
-    }
+    updateTrackPlayIcon(false);
+    updateMiniPlayerPlayIcon(false);
 }
 
 // ============================================================
@@ -530,7 +572,39 @@ function getPlaysText(count) {
 }
 
 // ============================================================
-// МИНИ-ПЛЕЕР
+// ОБНОВЛЕНИЕ ИКОНОК PLAY (БОЛЬШОЙ ПЛЕЕР)
+// ============================================================
+
+function updateTrackPlayIcon(isPlaying) {
+    const icon = document.getElementById('trackPlayIcon');
+    if (!icon) return;
+    if (isPlaying) {
+        icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+    } else {
+        icon.innerHTML = '<polygon points="5,3 19,12 5,21"/>';
+    }
+}
+
+// ============================================================
+// МИНИ-ПЛЕЕР (ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ)
+// ============================================================
+
+function updateMiniPlayerPlayIcon(isPlaying) {
+    const btn = document.getElementById('miniPlayerPlay');
+    if (!btn) return;
+    btn.textContent = isPlaying ? '⏸' : '▶';
+}
+
+function updateMiniPlayerProgress() {
+    const audio = document.getElementById('trackAudio');
+    const fill = document.getElementById('miniPlayerProgressFill');
+    if (!audio || !fill || !audio.duration) return;
+    const percent = (audio.currentTime / audio.duration) * 100;
+    fill.style.width = percent + '%';
+}
+
+// ============================================================
+// МИНИ-ПЛЕЕР (ОБНОВЛЁННЫЙ)
 // ============================================================
 
 function updateMiniPlayer(track) {
@@ -538,13 +612,18 @@ function updateMiniPlayer(track) {
     const cover = document.getElementById('miniPlayerCover');
     const title = document.getElementById('miniPlayerTitle');
     const artist = document.getElementById('miniPlayerArtist');
+    const progressFill = document.getElementById('miniPlayerProgressFill');
     
-    if (miniPlayer) miniPlayer.style.display = 'flex';
+    if (!miniPlayer) return;
+    
+    miniPlayer.classList.add('active');
+    miniPlayer.style.display = 'flex';
+    
     if (cover) cover.src = track.cover_url || 'firstpage/cover.png';
     if (title) title.textContent = track.title || 'Без названия';
+    
     if (artist) {
         let artistDisplay = track.artist_name || 'Неизвестный исполнитель';
-        // 🔥 Добавляем фиты в мини-плеер
         if (track.feat_ids && track.feat_ids.length > 0) {
             loadFeatNames(track.feat_ids).then(featNames => {
                 if (featNames.length > 0) {
@@ -558,10 +637,21 @@ function updateMiniPlayer(track) {
         }
     }
     
-    const info = miniPlayer?.querySelector('.mini-player-info');
+    if (progressFill && trackAudio && trackAudio.duration) {
+        const percent = (trackAudio.currentTime / trackAudio.duration) * 100;
+        progressFill.style.width = percent + '%';
+    }
+    
+    updateMiniPlayerPlayIcon(isTrackPlaying);
+    updateMiniPlayerFavorite(track.id);
+    
+    const info = miniPlayer.querySelector('.mini-player-info');
     if (info) {
-        info.onclick = () => {
-            if (currentTrack) openTrackPage(currentTrack);
+        info.onclick = (e) => {
+            e.stopPropagation();
+            if (currentTrack) {
+                navigateTo('track');
+            }
         };
     }
     
@@ -572,36 +662,163 @@ function updateMiniPlayer(track) {
             toggleTrackPlay();
         };
     }
-}
-
-function updateMiniPlayerPlayIcon(isPlaying) {
-    const btn = document.getElementById('miniPlayerPlay');
-    if (!btn) return;
-    btn.textContent = isPlaying ? '⏸' : '▶';
-}
-
-function updateMiniPlayerProgress() {
-    const audio = document.getElementById('trackAudio');
-    const bar = document.getElementById('miniPlayerProgressBar');
-    if (!audio || !bar || !audio.duration) return;
-    const percent = (audio.currentTime / audio.duration) * 100;
-    bar.style.width = `${percent}%`;
+    
+    const favBtn = document.getElementById('miniPlayerFavorite');
+    if (favBtn) {
+        favBtn.onclick = async (e) => {
+            e.stopPropagation();
+            if (!tgUserId) {
+                alert('Войдите в аккаунт');
+                return;
+            }
+            if (!currentTrack) return;
+            await toggleFavorite(currentTrack.id);
+            updateMiniPlayerFavorite(currentTrack.id);
+            if (document.getElementById('trackFavoriteBtn')) {
+                await updateFavoriteButton(currentTrack.id);
+            }
+        };
+    }
 }
 
 // ============================================================
-// 🔥 ОБРАБОТКА DEEP LINK (ЧЕРЕЗ TELEGRAM WEBAPP)
+// ОБНОВЛЕНИЕ ИЗБРАННОГО В МИНИ-ПЛЕЕРЕ
+// ============================================================
+
+async function updateMiniPlayerFavorite(trackId) {
+    const favBtn = document.getElementById('miniPlayerFavorite');
+    if (!favBtn) return;
+    
+    if (!tgUserId) {
+        favBtn.textContent = '♡';
+        favBtn.classList.remove('active');
+        return;
+    }
+    
+    const isFav = await isTrackFavorite(trackId);
+    favBtn.textContent = isFav ? '♥' : '♡';
+    favBtn.classList.toggle('active', isFav);
+}
+
+// ============================================================
+// ЗАПУСК ТРЕКА НА ГЛАВНОЙ (БЕЗ ОТКРЫТИЯ БОЛЬШОГО ПЛЕЕРА)
+// ============================================================
+
+function playTrackOnHome(track) {
+    console.log('▶️ Запуск трека на главной:', track.title);
+    
+    // Если переключаем на другой трек
+    if (currentTrack && currentTrack.id !== track.id) {
+        const previousTrackId = currentTrack.id;
+        const audio = document.getElementById('trackAudio');
+
+        // Запускаем затухание старого трека
+        stopEqualizer(previousTrackId);
+
+        // Останавливаем старое аудио
+        if (audio) {
+            audio.pause();
+        }
+    }
+    
+    // 1. Сохраняем текущий трек
+    currentTrack = track;
+    isPlayCounted = false;
+    
+    // 2. Получаем аудио элемент
+    const audio = document.getElementById('trackAudio');
+    if (!audio) return;
+    
+    // 3. Устанавливаем источник аудио
+    if (track.audio_url) {
+        audio.src = track.audio_url;
+        audio.load();
+    } else {
+        console.warn('⚠️ У трека нет аудиофайла');
+        return;
+    }
+    
+    // 4. Очищаем предыдущий интервал счётчика
+    if (playCheckInterval) {
+        clearInterval(playCheckInterval);
+        playCheckInterval = null;
+    }
+    
+    // 5. Обновляем мини-плеер
+    updateMiniPlayer(track);
+    
+    // 6. Запускаем воспроизведение
+    audio.play().catch(e => console.warn('Не удалось воспроизвести:', e));
+    isTrackPlaying = true;
+    
+    // 7. Обновляем иконки Play
+    updateTrackPlayIcon(true);
+    updateMiniPlayerPlayIcon(true);
+
+    // Убираем stopping и ended у всех эквалайзеров перед активацией
+    document.querySelectorAll('.track-equalizer.stopping, .track-equalizer.ended').forEach(eq => {
+        eq.classList.remove('stopping', 'ended');
+    });
+    
+    // 8. Обновляем эквалайзер на карточках
+    updateTrackEqualizers(track.id);
+
+    // 9. Добавляем класс track-playing для анимации
+    const root = document.getElementById('root') || document.body;
+    root.classList.add('track-playing');
+    
+    // 10. Обновляем Media Session
+    if (navigator.mediaSession) {
+        let artistDisplay = track.artist_name || 'Неизвестный исполнитель';
+        if (track.feat_ids && track.feat_ids.length > 0) {
+            loadFeatNames(track.feat_ids).then(featNames => {
+                if (featNames.length > 0) {
+                    artistDisplay += ` feat. ${featNames.join(', ')}`;
+                }
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: track.title || 'Без названия',
+                    artist: artistDisplay,
+                    album: "DB Sound",
+                    artwork: [
+                        {
+                            src: track.cover_url || 'firstpage/cover.png',
+                            sizes: "512x512",
+                            type: "image/jpeg"
+                        }
+                    ]
+                });
+            });
+        } else {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: track.title || 'Без названия',
+                artist: artistDisplay,
+                album: "DB Sound",
+                artwork: [
+                    {
+                        src: track.cover_url || 'firstpage/cover.png',
+                        sizes: "512x512",
+                        type: "image/jpeg"
+                    }
+                ]
+            });
+        }
+    }
+    
+    console.log('✅ Трек воспроизводится на главной');
+}
+
+// ============================================================
+// ОБРАБОТКА DEEP LINK (ЧЕРЕЗ TELEGRAM WEBAPP)
 // ============================================================
 
 async function handleDeepLink() {
     console.log('🔍 Проверка deep link...');
     
-    // Способ 1: Через Telegram WebApp (если открыто через бота)
     try {
         if (window.Telegram && window.Telegram.WebApp) {
             const initData = window.Telegram.WebApp.initDataUnsafe;
             console.log('📱 initDataUnsafe:', initData);
             
-            // Проверяем start_param — это то, что передаётся через /start
             if (initData.start_param) {
                 const startParam = initData.start_param;
                 console.log('🎯 start_param:', startParam);
@@ -617,7 +834,6 @@ async function handleDeepLink() {
         console.warn('⚠️ Ошибка чтения WebApp:', e);
     }
     
-    // Способ 2: Через URL (для веб-версии)
     const urlParams = new URLSearchParams(window.location.search);
     const trackFromUrl = urlParams.get('track') || urlParams.get('startapp');
     
@@ -641,7 +857,6 @@ async function openTrackById(trackId) {
         
         if (data) {
             console.log('✅ Трек найден:', data.title);
-            // Ждём загрузку страницы, затем открываем трек
             setTimeout(() => {
                 openTrackPage(data);
             }, 500);
