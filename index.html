@@ -20,384 +20,389 @@
 </head>
 <body>
     <div id="root">
-    <!-- ====== PRELOADER ====== -->
-    <div id="appPreloader" class="app-preloader">
-        <div class="preloader-content">
-            <div class="preloader-logo">DBMUSIC</div>
-            <div class="preloader-spinner"></div>
-            <div class="preloader-text">Загрузка...</div>
+    <!-- ====== МУЗЫКАЛЬНЫЙ PRELOADER ====== -->
+<div id="appPreloader" class="music-preloader">
+    <!-- Эквалайзер -->
+    <div class="bars-wrapper">
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+    </div>
+    
+    <!-- Прогресс-бар -->
+    <div class="progress-container">
+        <div class="progress-track">
+            <div class="progress-fill" id="preloaderProgressFill">
+                <div class="progress-thumb"></div>
+            </div>
+        </div>
+        <div class="progress-time">
+            <span class="time-current" id="preloaderTimeCurrent">0:00</span>
+            <span class="time-total" id="preloaderTimeTotal">0:30</span>
         </div>
     </div>
-        <!-- ====== НАВИГАЦИЯ ====== -->
-        <nav class="bottom-nav" id="bottomNav">
-            <button class="nav-btn active" data-page="home">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/>
-                </svg>
-                <span>Главная</span>
-            </button>
-            <button class="nav-btn" data-page="player">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/>
-                </svg>
-                <span>ВОЛОДЯ</span>
-            </button>
-            <button class="nav-btn" data-page="upload" id="uploadNavBtn">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 5v14M5 12h14"/>
-                </svg>
-                <span>Загрузить</span>
-            </button>
-            <button class="nav-btn" data-page="profile">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                </svg>
-                <span>Профиль</span>
-            </button>
-            <!-- ====== КНОПКА АДМИНКИ (только для админа) ====== -->
-            <button class="nav-btn" data-page="admin" id="adminNavBtn" style="display:none;">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                </svg>
-                <span>Админ</span>
-            </button>
-        </nav>
+</div>
 
-        <!-- ====== СТРАНИЦЫ ====== -->
-        <div class="page-container">
+    <!-- ====== НАВИГАЦИЯ (НОВЫЙ ПОРЯДОК) ====== -->
+<nav class="bottom-nav" id="bottomNav">
+    <button class="nav-btn active" data-page="home">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/>
+        </svg>
+        <span>Главная</span>
+    </button>
+    <button class="nav-btn" data-page="player">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/>
+        </svg>
+        <span>ВОЛОДЯ</span>
+    </button>
+    <button class="nav-btn" data-page="upload" id="uploadNavBtn">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"/>
+        </svg>
+        <span>Загрузить</span>
+    </button>
+    <button class="nav-btn" data-page="favorites" id="favoritesNavBtn">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+        <span>Избранное</span>
+    </button>
+    <!-- ====== КНОПКА АДМИНКИ (только для админа) ====== -->
+    <button class="nav-btn" data-page="admin" id="adminNavBtn" style="display:none;">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+        <span>Админ</span>
+    </button>
+</nav>
 
-            <!-- ====== СТРАНИЦА HOME ====== -->
-            <div class="page" id="page-home">
-                <div class="page-header">
-                    <h1>DBMUSIC</h1>
-                    <p class="greeting" id="greeting">Гость</p>
-                </div>
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="all">Все</button>
-                    <button class="tab-btn" data-tab="new">Новые</button>
-                    <button class="tab-btn" data-tab="popular">Популярные</button>
-                    <button class="tab-btn" data-tab="favorites" id="favoritesTab">Любимое</button> 
-                </div>
-                <div class="track-list" id="trackList">
-                    <div class="empty-state">Загрузка треков...</div>
-                </div>
+    <!-- ====== СТРАНИЦЫ ====== -->
+    <div class="page-container">
+
+        <!-- ====== СТРАНИЦА HOME ====== -->
+        <div class="page" id="page-home">
+            <div class="page-header">
+                <h1>DBMUSIC</h1>
+                <p class="greeting" id="greeting">Гость</p>
             </div>
-
-            <!-- ====== СТРАНИЦА PLAYER (СТАРАЯ) ====== -->
-            <div class="page" id="page-player" style="display:none;">
-                <div class="app">
-                    <div class="player">
-                        <div class="player-content" id="playerContent">
-                            <div class="cover-section">
-                                <div class="cover-background" id="coverBackground"></div>
-                                <div class="cover-wrapper">
-                                    <img src="firstpage/cover.png" alt="Cover" class="cover" id="coverImage">
-                                    <div class="cover-controls">
-                                        <div class="cover-controls-middle">
-                                            <button class="cover-btn-play" id="playButton">
-                                                <img src="firstpage/play.png" alt="Play" id="playIcon">
-                                            </button>
-                                        </div>
-                                        <div class="cover-controls-bottom">
-                                            <button class="cover-btn-bottom" id="lyricsToggleBtn" title="Текст песни">
-                                                <img src="firstpage/lyrics.png" alt="Lyrics" id="lyricsIcon">
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="track-info">
-                                    <h1>ЕБАННУТАЯ</h1>
-                                    <p>chamxmile, Vzon</p>
-                                </div>
-                                <div class="progress-container">
-                                    <input type="range" id="progress" value="0" min="0" max="100" step="0.1">
-                                    <div class="time">
-                                        <span id="currentTime">0:00</span>
-                                        <span id="duration">0:00</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="lyrics-section" id="lyricsSection">
-                                <div class="lyrics-content" id="lyricsContent"></div>
-                            </div>
-                        </div>
-                        <audio id="audio" src="firstpage/track.mp3" preload="metadata"></audio>
-
-                        <div class="comments">
-                            <div class="section-header" style="grid-column: 1 / -1;">
-                                <h2>Комментарии</h2>
-                                <span id="commentsCount">0</span>
-                            </div>
-                            <div class="comment-form">
-                                <input type="text" id="nameInput" placeholder="Ваше имя" maxlength="50">
-                                <textarea id="commentInput" placeholder="Написать комментарий..." rows="3" maxlength="500"></textarea>
-                                <button id="commentButton">Отправить комментарий</button>
-                                
-                                <div class="rating-block">
-                                    <div class="rating-header">
-                                        <span>Оцени трек</span>
-                                        <span class="rating-value" id="ratingValue">0</span>
-                                    </div>
-                                    <input type="range" id="ratingSlider" min="0" max="100" value="0" step="1">
-                                    <div class="rating-labels">
-                                        <span>0</span>
-                                        <span>50</span>
-                                        <span>100</span>
-                                    </div>
-                                    <button id="sendRatingButton" class="send-rating-btn">Отправить оценку</button>
-                                </div>
-                            </div>
-                            <div class="comments-list" id="commentsList">
-                                <div class="empty-comments">Пока комментариев нет</div>
-                            </div>
-                        </div>
-
-                        <div class="modal-overlay" id="modalOverlay">
-                            <div class="modal-content">
-                                <button class="modal-close" id="modalClose">✕</button>
-                                <img src="firstpage/love.png" alt="Людское" class="modal-image" id="modalImage">
-                                <audio id="taxiSound" src="firstpage/taxi.mp3" loop preload="auto"></audio>
-                            </div>
-                        </div>
-
-                        <div class="loading-overlay" id="loadingOverlay">
-                            <div class="loading-content">
-                                <img src="firstpage/loading.gif" alt="Загрузка" class="loading-gif">
-                            </div>
-                        </div>
-
-                        <div class="story-overlay" id="storyOverlay">
-                            <div class="story-content">
-                               <video id="storyVideo" src="firstpage/story.mp4" muted playsinline preload="auto"></video>
-                            </div>
-                        </div>
-
-                        <button class="skip-btn" id="skipBtn">СКИПНУТЬ</button>
-                    </div>
-                </div>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="all">Все</button>
+                <button class="tab-btn" data-tab="new">Новые</button>
+                <button class="tab-btn" data-tab="popular">Популярные</button>
             </div>
+            <div class="track-list" id="trackList">
+                <div class="empty-state">Загрузка треков...</div>
+            </div>
+        </div>
 
-            <!-- ====== СТРАНИЦА TRACK (НОВЫЙ ПЛЕЕР) ====== -->
-            <div class="page" id="page-track" style="display:none;">
-                <div class="track-page">
-                    <button class="track-back-btn" id="trackBackBtn">
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 12H5M12 19l-7-7 7-7"/>
-                        </svg>
-                        Назад
-                    </button>
-
-                    <div class="track-page-cover-wrapper">
-                        <div class="track-page-cover-bg" id="trackPageCoverBg"></div>
-                        <img src="firstpage/cover.png" alt="Cover" class="track-page-cover" id="trackPageCover">
-                    </div>
-
-                    <div class="track-page-info">
-                        <h1 class="track-page-title" id="trackPageTitle">Название трека</h1>
-                        <p class="track-page-artist" id="trackPageArtist">Исполнитель</p>
-                        <div id="trackPagePlays" style="font-size: 14px; color: var(--muted); margin-top: 4px;">0 прослушиваний</div>
-                    </div>
-
-                    <div class="track-page-progress">
-                        <input type="range" id="trackProgress" value="0" min="0" max="100" step="0.1">
-                        <div class="track-page-time">
-                            <span id="trackCurrentTime">0:00</span>
-                            <span id="trackDuration">0:00</span>
+        <!-- ====== СТРАНИЦА PLAYER (СТАРАЯ) ====== -->
+        <div class="page" id="page-player" style="display:none;">
+            <div class="app">
+                <div class="player">
+                    <div class="player-content" id="playerContent">
+                        <div class="cover-section">
+                            <div class="cover-background" id="coverBackground"></div>
+                            <div class="cover-wrapper">
+                                <img src="firstpage/cover.png" alt="Cover" class="cover" id="coverImage">
+                                <div class="cover-controls">
+                                    <div class="cover-controls-middle">
+                                        <button class="cover-btn-play" id="playButton">
+                                            <img src="firstpage/play.png" alt="Play" id="playIcon">
+                                        </button>
+                                    </div>
+                                    <div class="cover-controls-bottom">
+                                        <button class="cover-btn-bottom" id="lyricsToggleBtn" title="Текст песни">
+                                            <img src="firstpage/lyrics.png" alt="Lyrics" id="lyricsIcon">
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="track-info">
+                                <h1>ЕБАННУТАЯ</h1>
+                                <p>chamxmile, Vzon</p>
+                            </div>
+                            <div class="progress-container">
+                                <input type="range" id="progress" value="0" min="0" max="100" step="0.1">
+                                <div class="time">
+                                    <span id="currentTime">0:00</span>
+                                    <span id="duration">0:00</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lyrics-section" id="lyricsSection">
+                            <div class="lyrics-content" id="lyricsContent"></div>
                         </div>
                     </div>
+                    <audio id="audio" src="firstpage/track.mp3" preload="metadata"></audio>
 
-                    <div class="track-page-controls">
-                        <button class="track-page-btn" id="trackPrevBtn">
-                            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                                <polygon points="6,4 14,12 6,20"/>
-                                <rect x="16" y="4" width="2" height="16"/>
-                            </svg>
-                        </button>
-                        <button class="track-page-btn track-page-play-btn" id="trackPlayBtn">
-                            <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" id="trackPlayIcon">
-                                <polygon points="5,3 19,12 5,21"/>
-                            </svg>
-                        </button>
-                        <button class="track-page-btn" id="trackNextBtn">
-                            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                                <polygon points="18,4 10,12 18,20"/>
-                                <rect x="6" y="4" width="2" height="16"/>
-                            </svg>
-                        </button>
-                    </div>
-
-                    <div class="track-page-actions">
-                        <button class="track-page-action-btn" id="trackFavoriteBtn">🤍</button>
-                        <button class="track-page-action-btn" id="trackLyricsBtn">📝 Текст</button>
-                        <button class="track-page-action-btn" id="trackShareBtn">🔗 Поделиться</button>
-                    </div>
-
-                    <div class="track-page-lyrics" id="trackPageLyrics" style="display:none;">
-                        <div class="track-page-lyrics-content" id="trackPageLyricsContent"></div>
-                    </div>
-
-                    <div class="track-page-comments">
-                        <div class="track-page-comments-header">
-                            <h3>Комментарии</h3>
-                            <span id="trackCommentsCount">0</span>
+                    <div class="comments">
+                        <div class="section-header" style="grid-column: 1 / -1;">
+                            <h2>Комментарии</h2>
+                            <span id="commentsCount">0</span>
                         </div>
-                        <div class="track-page-comment-form">
-                            <input type="text" id="trackCommentName" placeholder="Ваше имя" maxlength="50">
-                            <textarea id="trackCommentInput" placeholder="Написать комментарий..." rows="2" maxlength="500"></textarea>
-                            <button id="trackCommentBtn">Отправить</button>
+                        <div class="comment-form">
+                            <input type="text" id="nameInput" placeholder="Ваше имя" maxlength="50">
+                            <textarea id="commentInput" placeholder="Написать комментарий..." rows="3" maxlength="500"></textarea>
+                            <button id="commentButton">Отправить комментарий</button>
+                            
+                            <div class="rating-block">
+                                <div class="rating-header">
+                                    <span>Оцени трек</span>
+                                    <span class="rating-value" id="ratingValue">0</span>
+                                </div>
+                                <input type="range" id="ratingSlider" min="0" max="100" value="0" step="1">
+                                <div class="rating-labels">
+                                    <span>0</span>
+                                    <span>50</span>
+                                    <span>100</span>
+                                </div>
+                                <button id="sendRatingButton" class="send-rating-btn">Отправить оценку</button>
+                            </div>
                         </div>
-                        <div class="track-page-comments-list" id="trackCommentsList">
+                        <div class="comments-list" id="commentsList">
                             <div class="empty-comments">Пока комментариев нет</div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- ====== СТРАНИЦА UPLOAD ====== -->
-            <div class="page" id="page-upload" style="display:none;">
-                <div class="page-header">
-                    <h1>Загрузить проект</h1>
-                </div>
-                <div class="upload-form">
-                    <div class="upload-greeting" id="uploadGreeting">
-    <p>Вы загружаете проект от имени:</p>
-    <p id="uploadUserDisplay">Гость</p>
-    <p class="upload-sub" id="uploadUserTag"></p>
-</div>
-                    <div class="form-group">
-                        <label>Аудиофайл</label>
-                        <input type="file" accept=".mp3,.wav,.m4a,.flac" id="audioFileInput">
-                    </div>
-                    <div class="form-group">
-                        <label>Обложка</label>
-                        <input type="file" accept=".jpg,.jpeg,.png,.webp" id="coverFileInput">
-                    </div>
-                    <div class="form-group">
-                        <label>Название проекта</label>
-                        <input type="text" id="trackTitleInput" placeholder="Введите название">
-                    </div>
-                    <div class="form-group">
-                        <label>Исполнитель</label>
-                        <input type="text" id="trackArtistInput" placeholder="Введите имя исполнителя" readonly style="cursor: default; opacity: 0.8; background: var(--card-light);">
-                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">
-                            ⚡ Ваше имя будет подставлено автоматически
-                        </p>
-                    </div>
-                    <div class="form-group">
-                        <label>Фиты (соисполнители)</label>
-                        <div id="featsContainer">
-                            <div class="feat-item">
-                                <input type="text" id="featInput" placeholder="Введите имя соисполнителя" list="featList">
-                                <button type="button" id="addFeatBtn" class="add-feat-btn">+</button>
-                            </div>
-                            <div id="featsList" class="feats-list"></div>
-                            <datalist id="featList"></datalist>
-                        </div>
-                        <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">
-                            Выберите исполнителя из списка или создайте нового
-                        </p>
-                    </div>
-                    <div class="form-group">
-                        <label>Текст</label>
-                        <textarea id="trackLyricsInput" rows="6" placeholder="Введите текст трека"></textarea>
-                    </div>
-                    <button id="uploadTrackBtn" class="upload-submit-btn">Загрузить проект</button>
-                    <div id="uploadStatus" class="upload-status"></div>
-                </div>
-            </div>
-
-            <!-- ====== СТРАНИЦА PROFILE ====== -->
-            <div class="page" id="page-profile" style="display:none;">
-                <div class="page-header">
-                    <h1>Профиль</h1>
-                </div>
-                <div class="profile-card">
-                    <div class="profile-avatar" id="profileAvatar">👤</div>
-                    <div class="profile-name" id="profileName">Гость</div>
-                    <div class="profile-username" id="profileUsername"></div>
-                    <div class="profile-id" id="profileId">Telegram ID: —</div>
-                    <div class="profile-stats">
-                        <div class="stat">
-                            <span class="stat-number" id="statTracks">0</span>
-                            <span class="stat-label">Проектов</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-number" id="statPlays">0</span>
-                            <span class="stat-label">Прослушиваний</span>
+                    <div class="modal-overlay" id="modalOverlay">
+                        <div class="modal-content">
+                            <button class="modal-close" id="modalClose">✕</button>
+                            <img src="firstpage/love.png" alt="Людское" class="modal-image" id="modalImage">
+                            <audio id="taxiSound" src="firstpage/taxi.mp3" loop preload="auto"></audio>
                         </div>
                     </div>
-                </div>
-                <div class="my-tracks-section">
-                    <div class="my-tracks-header">
-                        <h2>Мои проекты</h2>
-                        <span id="myTracksCount">0</span>
+
+                    <div class="loading-overlay" id="loadingOverlay">
+                        <div class="loading-content">
+                            <img src="firstpage/loading.gif" alt="Загрузка" class="loading-gif">
+                        </div>
                     </div>
-                    <div id="myTracksList">
-                        <div class="empty-state">Нет загруженных проектов</div>
+
+                    <div class="story-overlay" id="storyOverlay">
+                        <div class="story-content">
+                           <video id="storyVideo" src="firstpage/story.mp4" muted playsinline preload="auto"></video>
+                        </div>
                     </div>
+
+                    <button class="skip-btn" id="skipBtn">СКИПНУТЬ</button>
                 </div>
             </div>
-
-            <!-- ====== СТРАНИЦА ADMIN ====== -->
-            <div class="page" id="page-admin" style="display:none;">
-                <div class="page-header">
-                    <h1>Админ-панель</h1>
-                    <p class="greeting" style="color: var(--muted);">Управление пользователями и треками</p>
-                </div>
-                
-                <div class="admin-section">
-                    <h2>👥 Пользователи</h2>
-                    <div id="adminUsersList">
-                        <div class="empty-state">Загрузка пользователей...</div>
-                    </div>
-                </div>
-                
-                <div class="admin-section">
-                    <h2>🎵 Все треки</h2>
-                    <div id="adminTracksList">
-                        <div class="empty-state">Загрузка треков...</div>
-                    </div>
-                </div>
-            </div>
-
         </div>
 
-        <!-- ====== МИНИ-ПЛЕЕР ВНИЗУ ====== -->
-        <div class="mini-player" id="miniPlayer" style="display:none;">
-            <div class="mini-player-info">
-                <img src="firstpage/cover.png" alt="Cover" class="mini-player-cover" id="miniPlayerCover">
-                <div class="mini-player-meta">
-                    <div class="mini-player-title" id="miniPlayerTitle">Название трека</div>
-                    <div class="mini-player-artist" id="miniPlayerArtist">Исполнитель</div>
+        <!-- ====== СТРАНИЦА TRACK (НОВЫЙ ПЛЕЕР) ====== -->
+        <div class="page" id="page-track" style="display:none;">
+            <div class="track-page">
+                <button class="track-back-btn" id="trackBackBtn">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                    Назад
+                </button>
+
+                <div class="track-page-cover-wrapper">
+                    <div class="track-page-cover-bg" id="trackPageCoverBg"></div>
+                    <img src="firstpage/cover.png" alt="Cover" class="track-page-cover" id="trackPageCover">
+                </div>
+
+                <div class="track-page-info">
+                    <h1 class="track-page-title" id="trackPageTitle">Название трека</h1>
+                    <p class="track-page-artist" id="trackPageArtist">Исполнитель</p>
+                    <div id="trackPagePlays" style="font-size: 14px; color: var(--muted); margin-top: 4px;">0 прослушиваний</div>
+                </div>
+
+                <div class="track-page-progress">
+                    <input type="range" id="trackProgress" value="0" min="0" max="100" step="0.1">
+                    <div class="track-page-time">
+                        <span id="trackCurrentTime">0:00</span>
+                        <span id="trackDuration">0:00</span>
+                    </div>
+                </div>
+
+                <div class="track-page-controls">
+                    <button class="track-page-btn" id="trackPrevBtn">
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                            <polygon points="6,4 14,12 6,20"/>
+                            <rect x="16" y="4" width="2" height="16"/>
+                        </svg>
+                    </button>
+                    <button class="track-page-btn track-page-play-btn" id="trackPlayBtn">
+                        <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" id="trackPlayIcon">
+                            <polygon points="5,3 19,12 5,21"/>
+                        </svg>
+                    </button>
+                    <button class="track-page-btn" id="trackNextBtn">
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                            <polygon points="18,4 10,12 18,20"/>
+                            <rect x="6" y="4" width="2" height="16"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="track-page-actions">
+                    <button class="track-page-action-btn" id="trackFavoriteBtn">🤍</button>
+                    <button class="track-page-action-btn" id="trackLyricsBtn">📝 Текст</button>
+                    <button class="track-page-action-btn" id="trackShareBtn">🔗 Поделиться</button>
+                </div>
+
+                <div class="track-page-lyrics" id="trackPageLyrics" style="display:none;">
+                    <div class="track-page-lyrics-content" id="trackPageLyricsContent"></div>
+                </div>
+
+                <div class="track-page-comments">
+                    <div class="track-page-comments-header">
+                        <h3>Комментарии</h3>
+                        <span id="trackCommentsCount">0</span>
+                    </div>
+                    <div class="track-page-comment-form">
+                        <input type="text" id="trackCommentName" placeholder="Ваше имя" maxlength="50">
+                        <textarea id="trackCommentInput" placeholder="Написать комментарий..." rows="2" maxlength="500"></textarea>
+                        <button id="trackCommentBtn">Отправить</button>
+                    </div>
+                    <div class="track-page-comments-list" id="trackCommentsList">
+                        <div class="empty-comments">Пока комментариев нет</div>
+                    </div>
                 </div>
             </div>
-            <div class="mini-player-controls">
-                <button class="mini-player-btn" id="miniPlayerPrev">⏮</button>
-                <button class="mini-player-btn mini-player-play" id="miniPlayerPlay">▶</button>
-                <button class="mini-player-btn" id="miniPlayerNext">⏭</button>
+        </div>
+
+        <!-- ====== СТРАНИЦА FAVORITES (ОБНОВЛЕННАЯ) ====== -->
+<div class="page" id="page-favorites" style="display:none;">
+    <div id="favoritesContent">
+        <!-- Сюда рендерится контент из favorites.js -->
+    </div>
+</div>
+
+        <!-- ====== СТРАНИЦА UPLOAD ====== -->
+        <div class="page" id="page-upload" style="display:none;">
+            <div class="page-header">
+                <h1>Загрузить проект</h1>
             </div>
-            <div class="mini-player-progress">
-                <div class="mini-player-progress-bar" id="miniPlayerProgressBar"></div>
+            <div class="upload-form">
+                <div class="upload-greeting" id="uploadGreeting">
+                    <p>Вы загружаете проект от имени:</p>
+                    <p id="uploadUserDisplay">Гость</p>
+                    <p class="upload-sub" id="uploadUserTag"></p>
+                </div>
+                <div class="form-group">
+                    <label>Аудиофайл</label>
+                    <input type="file" accept=".mp3,.wav,.m4a,.flac" id="audioFileInput">
+                </div>
+                <div class="form-group">
+                    <label>Обложка</label>
+                    <input type="file" accept=".jpg,.jpeg,.png,.webp" id="coverFileInput">
+                </div>
+                <div class="form-group">
+                    <label>Название проекта</label>
+                    <input type="text" id="trackTitleInput" placeholder="Введите название">
+                </div>
+                <div class="form-group">
+                    <label>Исполнитель</label>
+                    <input type="text" id="trackArtistInput" placeholder="Введите имя исполнителя" readonly style="cursor: default; opacity: 0.8; background: var(--card-light);">
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+                        ⚡ Ваше имя будет подставлено автоматически
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label>Фиты (соисполнители)</label>
+                    <div id="featsContainer">
+                        <div class="feat-item">
+                            <input type="text" id="featInput" placeholder="Введите имя соисполнителя" list="featList">
+                            <button type="button" id="addFeatBtn" class="add-feat-btn">+</button>
+                        </div>
+                        <div id="featsList" class="feats-list"></div>
+                        <datalist id="featList"></datalist>
+                    </div>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+                        Выберите исполнителя из списка или создайте нового
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label>Текст</label>
+                    <textarea id="trackLyricsInput" rows="6" placeholder="Введите текст трека"></textarea>
+                </div>
+                <button id="uploadTrackBtn" class="upload-submit-btn">Загрузить проект</button>
+                <div id="uploadStatus" class="upload-status"></div>
+            </div>
+        </div>
+
+        <!-- ====== СТРАНИЦА PROFILE ====== -->
+        <div class="page" id="page-profile" style="display:none;">
+            <div id="profileContent">
+                <!-- Сюда рендерится контент из profile.js -->
+            </div>
+        </div>
+
+        <!-- ====== СТРАНИЦА ADMIN ====== -->
+        <div class="page" id="page-admin" style="display:none;">
+            <div class="page-header">
+                <h1>Админ-панель</h1>
+                <p class="greeting" style="color: var(--muted);">Управление пользователями и треками</p>
+            </div>
+            
+            <div class="admin-section">
+                <h2>👥 Пользователи</h2>
+                <div id="adminUsersList">
+                    <div class="empty-state">Загрузка пользователей...</div>
+                </div>
+            </div>
+            
+            <div class="admin-section">
+                <h2>🎵 Все треки</h2>
+                <div id="adminTracksList">
+                    <div class="empty-state">Загрузка треков...</div>
+                </div>
             </div>
         </div>
 
     </div>
 
-    <!-- Аудио для нового плеера -->
-    <audio id="trackAudio" preload="metadata"></audio>
+    <!-- ====== МИНИ-ПЛЕЕР ВНИЗУ ====== -->
+    <div class="mini-player" id="miniPlayer" style="display:none;">
+        <div class="mini-player-info">
+            <img src="firstpage/cover.png" alt="Cover" class="mini-player-cover" id="miniPlayerCover">
+            <div class="mini-player-meta">
+                <div class="mini-player-title" id="miniPlayerTitle">Название трека</div>
+                <div class="mini-player-artist" id="miniPlayerArtist">Исполнитель</div>
+            </div>
+        </div>
+        <div class="mini-player-controls">
+            <button class="mini-player-btn" id="miniPlayerPrev">⏮</button>
+            <button class="mini-player-btn mini-player-play" id="miniPlayerPlay">▶</button>
+            <button class="mini-player-btn" id="miniPlayerNext">⏭</button>
+        </div>
+        <div class="mini-player-progress">
+            <div class="mini-player-progress-bar" id="miniPlayerProgressBar"></div>
+        </div>
+    </div>
 
-    <!-- ====== ПОДКЛЮЧАЕМ JS ====== -->
-    <!-- СТАРЫЙ JS (из папки firstpage) -->
-    <script src="firstpage/script.js"></script>
+</div>
 
-    <!-- НОВЫЙ JS -->
-    <script src="js/auth.js"></script>
-    <script src="js/track.js"></script>
-    <script src="js/upload.js"></script>
-    <script src="js/profile.js"></script>
-    <script src="js/admin.js"></script>
-    <script src="script.js"></script>
+<!-- Аудио для нового плеера -->
+<audio id="trackAudio" preload="metadata"></audio>
+
+<!-- ====== ПОДКЛЮЧАЕМ JS ====== -->
+<!-- СТАРЫЙ JS (из папки firstpage) -->
+<script src="firstpage/script.js"></script>
+
+<!-- НОВЫЙ JS -->
+<script src="js/auth.js"></script>
+<script src="js/track.js"></script>
+<script src="js/upload.js"></script>
+<script src="js/profile.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/favorites.js"></script>
+<script src="script.js"></script>
 </body> 
 </html>

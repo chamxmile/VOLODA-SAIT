@@ -306,34 +306,34 @@ function initTrackPlayer() {
     }
 
     // ============================================================
-    // 🔥 ОБНОВЛЕННАЯ КНОПКА «ПОДЕЛИТЬСЯ»
+    // 🔥 ОБНОВЛЁННАЯ КНОПКА «ПОДЕЛИТЬСЯ» — ПРАВИЛЬНЫЙ ФОРМАТ
     // ============================================================
     
     if (shareBtn) {
         shareBtn.addEventListener('click', () => {
             if (!currentTrack) return;
             
-            // 🔥 Используем startapp вместо start для Deep Link в Mini App
             const botUsername = 'demkawqbot';
-            // Формируем ссылку для Mini App
-            const shareUrl = `https://t.me/${botUsername}/dbsound?startapp=track_${currentTrack.id}`;
             
-            // Формируем текст с обложкой в ссылке (Telegram автоматически покажет превью)
+            // 🔥 ПРАВИЛЬНЫЙ ФОРМАТ: используем ?start= для передачи параметра боту
+            // Бот получит /start track_<id> и сможет обработать
+            const shareUrl = `https://t.me/${botUsername}?start=track_${currentTrack.id}`;
+            
+            // Формируем текст для отправки
             const shareText = `🎵 ${currentTrack.title} — ${currentTrack.artist_name || 'Неизвестный исполнитель'}\nСлушай на DB Sound!\n${shareUrl}`;
             
             if (navigator.share) {
                 navigator.share({
                     title: currentTrack.title,
                     text: shareText,
-                    // 🔥 Пробуем добавить URL для превью
                     url: shareUrl,
                 }).catch(() => {});
             } else {
                 navigator.clipboard.writeText(shareText).then(() => {
-                    alert('🔗 Ссылка скопирована!\nПоделитесь ей с друзьями, чтобы они могли открыть трек в мини-аппе.');
+                    alert('🔗 Ссылка скопирована!\nОтправь её другу — он откроет трек в приложении.');
                 }).catch(() => {
-                    // Fallback: показываем ссылку
-                    prompt('Скопируйте ссылку:', shareText);
+                    // Fallback: показываем ссылку для копирования
+                    prompt('Скопируйте ссылку и отправьте другу:', shareText);
                 });
             }
         });
@@ -589,39 +589,67 @@ function updateMiniPlayerProgress() {
 }
 
 // ============================================================
-// 🔥 ОБРАБОТКА STARTAPP ПАРАМЕТРА (ДЛЯ ГЛУБОКИХ ССЫЛОК)
+// 🔥 ОБРАБОТКА DEEP LINK (ЧЕРЕЗ TELEGRAM WEBAPP)
 // ============================================================
 
-async function handleStartAppParam() {
-    // Проверяем, есть ли параметр startapp в URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const startApp = urlParams.get('startapp');
+async function handleDeepLink() {
+    console.log('🔍 Проверка deep link...');
     
-    console.log('🔍 startapp параметр:', startApp);
-    
-    if (startApp && startApp.startsWith('track_')) {
-        const trackId = startApp.replace('track_', '');
-        console.log('🎯 Нужно открыть трек с ID:', trackId);
-        
-        try {
-            const { data, error } = await supabaseClient
-                .from('tracks')
-                .select('*')
-                .eq('id', trackId)
-                .single();
+    // Способ 1: Через Telegram WebApp (если открыто через бота)
+    try {
+        if (window.Telegram && window.Telegram.WebApp) {
+            const initData = window.Telegram.WebApp.initDataUnsafe;
+            console.log('📱 initDataUnsafe:', initData);
             
-            if (error) throw error;
-            
-            if (data) {
-                console.log('✅ Трек найден, открываем:', data.title);
-                // Ждём загрузку страницы, затем открываем трек
-                setTimeout(() => {
-                    openTrackPage(data);
-                }, 500);
+            // Проверяем start_param — это то, что передаётся через /start
+            if (initData.start_param) {
+                const startParam = initData.start_param;
+                console.log('🎯 start_param:', startParam);
+                
+                if (startParam.startsWith('track_')) {
+                    const trackId = startParam.replace('track_', '');
+                    await openTrackById(trackId);
+                    return;
+                }
             }
-        } catch (e) {
-            console.error('❌ Ошибка загрузки трека по startapp:', e);
         }
+    } catch (e) {
+        console.warn('⚠️ Ошибка чтения WebApp:', e);
+    }
+    
+    // Способ 2: Через URL (для веб-версии)
+    const urlParams = new URLSearchParams(window.location.search);
+    const trackFromUrl = urlParams.get('track') || urlParams.get('startapp');
+    
+    if (trackFromUrl) {
+        const trackId = trackFromUrl.replace('track_', '');
+        await openTrackById(trackId);
+    }
+}
+
+async function openTrackById(trackId) {
+    console.log('🎯 Открываем трек с ID:', trackId);
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('tracks')
+            .select('*')
+            .eq('id', trackId)
+            .single();
+        
+        if (error) throw error;
+        
+        if (data) {
+            console.log('✅ Трек найден:', data.title);
+            // Ждём загрузку страницы, затем открываем трек
+            setTimeout(() => {
+                openTrackPage(data);
+            }, 500);
+        } else {
+            console.warn('⚠️ Трек не найден');
+        }
+    } catch (e) {
+        console.error('❌ Ошибка загрузки трека:', e);
     }
 }
 

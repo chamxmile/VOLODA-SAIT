@@ -51,8 +51,12 @@ function enableFullscreen() {
 }
 
 // ============================================================
-// PRELOADER
+// PRELOADER С РЕАЛЬНЫМ ПРОГРЕССОМ
 // ============================================================
+
+let preloaderProgress = 0;
+let preloaderSteps = [];
+let preloaderStepIndex = 0;
 
 function showPreloader() {
     const preloader = document.getElementById('appPreloader');
@@ -68,8 +72,79 @@ function hidePreloader() {
     }
 }
 
+// Шаги загрузки (реальные события)
+function initPreloaderSteps() {
+    preloaderSteps = [
+        { name: 'Инициализация', weight: 5 },
+        { name: 'Telegram WebApp', weight: 5 },
+        { name: 'Пользователь', weight: 10 },
+        { name: 'Права доступа', weight: 5 },
+        { name: 'Навигация', weight: 5 },
+        { name: 'Треки', weight: 25 },
+        { name: 'Профиль', weight: 10 },
+        { name: 'Избранное', weight: 10 },
+        { name: 'Плеер', weight: 15 },
+        { name: 'Готово', weight: 10 }
+    ];
+    preloaderStepIndex = 0;
+    preloaderProgress = 0;
+    updatePreloaderUI();
+}
+
+function updatePreloaderProgress(stepName) {
+    // Ищем шаг с таким именем
+    let found = false;
+    for (let i = 0; i < preloaderSteps.length; i++) {
+        if (preloaderSteps[i].name === stepName) {
+            preloaderProgress += preloaderSteps[i].weight;
+            if (preloaderProgress > 100) preloaderProgress = 100;
+            found = true;
+            break;
+        }
+    }
+    
+    // Если шаг не найден, добавляем +2%
+    if (!found && preloaderProgress < 90) {
+        preloaderProgress += 2;
+        if (preloaderProgress > 90) preloaderProgress = 90;
+    }
+    
+    updatePreloaderUI();
+}
+
+function updatePreloaderUI() {
+    const fill = document.getElementById('preloaderProgressFill');
+    const currentTime = document.getElementById('preloaderTimeCurrent');
+    const totalTime = document.getElementById('preloaderTimeTotal');
+    
+    if (fill) {
+        fill.style.width = Math.min(preloaderProgress, 100) + '%';
+    }
+    
+    if (currentTime) {
+        const totalSeconds = 30;
+        const currentSeconds = Math.floor((preloaderProgress / 100) * totalSeconds);
+        const minutes = Math.floor(currentSeconds / 60);
+        const secs = currentSeconds % 60;
+        currentTime.textContent = `${minutes}:${String(secs).padStart(2, '0')}`;
+    }
+    
+    if (totalTime) {
+        totalTime.textContent = '0:30';
+    }
+}
+
+function completePreloader() {
+    preloaderProgress = 100;
+    updatePreloaderUI();
+    
+    setTimeout(() => {
+        hidePreloader();
+    }, 400);
+}
+
 // ============================================================
-// НАВИГАЦИЯ
+// НАВИГАЦИЯ (ИСПРАВЛЕННАЯ)
 // ============================================================
 let pages = {};
 let navBtns = [];
@@ -79,8 +154,9 @@ function initNavigation() {
         home: document.getElementById('page-home'),
         player: document.getElementById('page-player'),
         track: document.getElementById('page-track'),
+        favorites: document.getElementById('page-favorites'),
         upload: document.getElementById('page-upload'),
-        profile: document.getElementById('page-profile'),
+        profile: document.getElementById('page-profile'),  // ← ВЕРНУЛИ ОБРАТНО
         admin: document.getElementById('page-admin')
     };
     navBtns = document.querySelectorAll('.nav-btn');
@@ -106,6 +182,19 @@ function navigateTo(page) {
         btn.classList.toggle('active', btn.dataset.page === page);
     });
     
+    // 🔥 Загружаем контент при переходе на страницу
+    if (page === 'favorites') {
+        if (typeof loadFavorites === 'function') {
+            loadFavorites();
+        }
+    }
+    
+    if (page === 'profile') {
+        if (typeof loadProfile === 'function') {
+            loadProfile();
+        }
+    }
+    
     if (page === 'admin') {
         if (typeof loadAdminUsers === 'function') loadAdminUsers();
         if (typeof loadAdminTracks === 'function') loadAdminTracks();
@@ -115,7 +204,7 @@ function navigateTo(page) {
 }
 
 // ============================================================
-// ОТОБРАЖЕНИЕ АДМИН-КНОПКИ
+// ОТОБРАЖЕНИЕ КНОПОК
 // ============================================================
 
 function updateAdminButton() {
@@ -131,6 +220,21 @@ function updateAdminButton() {
     } else {
         adminBtn.style.display = 'none';
         console.log('👑 Админ-кнопка скрыта');
+    }
+}
+
+function updateFavoritesButton() {
+    const favBtn = document.getElementById('favoritesNavBtn');
+    if (!favBtn) return;
+    
+    const isAuthenticated = tgUserId && tgUserId !== 0 && tgUserId !== 123456789;
+    
+    if (isAuthenticated) {
+        favBtn.style.display = 'flex';
+        console.log('❤️ Кнопка избранного показана');
+    } else {
+        favBtn.style.display = 'none';
+        console.log('❤️ Кнопка избранного скрыта');
     }
 }
 
@@ -170,7 +274,7 @@ async function openTrackById(trackId) {
 }
 
 // ============================================================
-// ОБРАБОТКА ТАБОВ НА ГЛАВНОЙ
+// ОБРАБОТКА ТАБОВ НА ГЛАВНОЙ (ОБНОВЛЕННАЯ)
 // ============================================================
 
 function initTabs() {
@@ -184,19 +288,8 @@ function initTabs() {
             const tab = btn.dataset.tab;
             console.log('📑 Переключение на вкладку:', tab);
             
-            if (tab === 'favorites') {
-                if (typeof loadFavoriteTracks === 'function') {
-                    await loadFavoriteTracks();
-                } else {
-                    console.warn('⚠️ loadFavoriteTracks не определена');
-                    const trackList = document.getElementById('trackList');
-                    if (trackList) {
-                        trackList.innerHTML = `<div class="empty-state">❌ Функция загрузки избранного не найдена</div>`;
-                    }
-                }
-            } else {
-                await loadTracksToHome();
-            }
+            // 🔥 Больше нет вкладки "favorites" на главной
+            await loadTracksToHome();
         });
     });
 }
@@ -209,17 +302,23 @@ async function initApp() {
     console.log('🚀 Инициализация DB Sound...');
     
     showPreloader();
+    initPreloaderSteps();
+    updatePreloaderProgress('Инициализация');
     
     // 🔥 ВКЛЮЧАЕМ ПОЛНОЭКРАННЫЙ РЕЖИМ
     enableFullscreen();
+    updatePreloaderProgress('Telegram WebApp');
     
     initNavigation();
+    updatePreloaderProgress('Навигация');
     
     const user = initTelegram();
+    updatePreloaderProgress('Пользователь');
     
     let dbUser = null;
     if (user && user.id && user.id !== 0 && user.id !== 123456789) {
         dbUser = await getOrCreateUser(user);
+        updatePreloaderProgress('Права доступа');
     } else {
         console.log('👤 Гость (пользователь не определён)');
         currentUserPermissions = {
@@ -227,6 +326,7 @@ async function initApp() {
             is_admin: false,
             is_blocked: false
         };
+        updatePreloaderProgress('Права доступа');
     }
     
     if (user) {
@@ -237,11 +337,13 @@ async function initApp() {
     }
 
     updateAdminButton();
+    updateFavoritesButton();
     updateUploadButton(currentUserPermissions.can_upload);
     
     if (dbUser) updateUploadButton(currentUserPermissions.can_upload);
     
     initTabs();
+    updatePreloaderProgress('Треки');
     
     let trackId = null;
     
@@ -264,13 +366,21 @@ async function initApp() {
         navigateTo('home');
         await loadTracksToHome();
         initTrackPlayer();
+        updatePreloaderProgress('Плеер');
         
-        if (typeof loadMyTracks === 'function') {
-            await loadMyTracks();
+        if (typeof loadProfile === 'function') {
+            await loadProfile();
+            updatePreloaderProgress('Профиль');
+        }
+        
+        if (typeof loadFavorites === 'function') {
+            await loadFavorites();
+            updatePreloaderProgress('Избранное');
         }
     }
     
-    hidePreloader();
+    updatePreloaderProgress('Готово');
+    completePreloader();
     
     console.log('✅ DB Sound инициализирован');
     console.log('👤 Пользователь:', user);

@@ -95,16 +95,202 @@ async function getUserAvatar(userId) {
 }
 
 // ============================================================
-// ЗАГРУЗКА ПРОЕКТОВ ПОЛЬЗОВАТЕЛЯ (С ФИТАМИ)
+// ОБНОВЛЕНИЕ UI С АВАТАРОМ
+// ============================================================
+
+async function updateProfileAvatar(user) {
+    if (!user || !user.id) return;
+    
+    const avatarEl = document.getElementById('profileAvatar');
+    if (!avatarEl) return;
+    
+    const avatarUrl = await getUserAvatar(user.id);
+    if (avatarUrl) {
+        avatarEl.innerHTML = `<img src="${avatarUrl}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">`;
+    } else {
+        const firstName = user.first_name || '';
+        const lastName = user.last_name || '';
+        const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || '👤';
+        avatarEl.textContent = initials;
+        avatarEl.style.fontSize = '32px';
+        avatarEl.style.display = 'flex';
+        avatarEl.style.alignItems = 'center';
+        avatarEl.style.justifyContent = 'center';
+    }
+}
+
+// ============================================================
+// ЗАГРУЗКА ПРОФИЛЯ (ОБНОВЛЕННАЯ — РАЗДЕЛЕНИЕ НА АРТИСТА/СЛУШАТЕЛЯ)
+// ============================================================
+
+async function loadProfile() {
+    const container = document.getElementById('profileContent');
+    if (!container) return;
+    
+    if (!tgUser) {
+        container.innerHTML = `
+            <div class="profile-card">
+                <div class="profile-avatar" id="profileAvatar">👤</div>
+                <div class="profile-name">Гость</div>
+                <div class="profile-username"></div>
+                <div class="profile-id">Telegram ID: —</div>
+                <div class="profile-divider"></div>
+                <button class="profile-action-btn" onclick="alert('Войдите в аккаунт через Telegram')" style="width:100%;text-align:center;justify-content:center;">
+                    <span class="profile-action-icon">🔑</span>
+                    <span>Войти</span>
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Проверяем, является ли пользователь артистом
+    const isArtist = currentUserPermissions?.can_upload === true;
+    
+    if (!isArtist) {
+        // 🔥 Обычный пользователь — только аватар, имя и кнопка "Мне нравится"
+        container.innerHTML = `
+            <div class="profile-card">
+                <div class="profile-avatar-wrapper">
+                    <div id="profileAvatar" class="profile-avatar">👤</div>
+                </div>
+                <div class="profile-name" id="profileName">${escapeHTML(tgUser.first_name || 'Пользователь')}</div>
+                <div class="profile-username" id="profileUsername">${tgUser.username ? '@' + escapeHTML(tgUser.username) : ''}</div>
+                <div class="profile-id" id="profileId">Telegram ID: ${tgUser.id || '—'}</div>
+                <div class="profile-role">👤 Слушатель</div>
+                <div class="profile-divider"></div>
+                <div class="profile-actions">
+                    <button class="profile-action-btn" onclick="navigateTo('favorites')">
+                        <span class="profile-action-icon">❤️</span>
+                        <span>Мне нравится</span>
+                        <span class="profile-action-arrow">→</span>
+                    </button>
+                </div>
+                <div class="profile-divider"></div>
+                <div class="profile-footer">
+                    <p class="profile-footer-text">DB Sound v1.0</p>
+                </div>
+            </div>
+        `;
+        
+        await updateProfileAvatar(tgUser);
+        return;
+    }
+    
+    // 🔥 Артист — полный профиль со статистикой и проектами
+    try {
+        const { data: tracks, error } = await supabaseClient
+            .from('tracks')
+            .select('*')
+            .eq('owner_id', tgUserId);
+        
+        if (error) throw error;
+        
+        const totalTracks = tracks?.length || 0;
+        const totalPlays = tracks?.reduce((sum, t) => sum + (t.plays || 0), 0) || 0;
+        
+        container.innerHTML = `
+            <div class="profile-card">
+                <div class="profile-avatar-wrapper">
+                    <div id="profileAvatar" class="profile-avatar">👤</div>
+                </div>
+                <div class="profile-name" id="profileName">${escapeHTML(tgUser.first_name || 'Пользователь')}</div>
+                <div class="profile-username" id="profileUsername">${tgUser.username ? '@' + escapeHTML(tgUser.username) : ''}</div>
+                <div class="profile-id" id="profileId">Telegram ID: ${tgUser.id || '—'}</div>
+                <div class="profile-role">🎵 Артист</div>
+                <div class="profile-stats">
+                    <div class="profile-stat">
+                        <span class="profile-stat-number">${totalTracks}</span>
+                        <span class="profile-stat-label">Треков</span>
+                    </div>
+                    <div class="profile-stat">
+                        <span class="profile-stat-number">${totalPlays}</span>
+                        <span class="profile-stat-label">Прослушиваний</span>
+                    </div>
+                </div>
+                <div class="profile-divider"></div>
+                <div class="profile-actions">
+                    <button class="profile-action-btn" onclick="navigateTo('favorites')">
+                        <span class="profile-action-icon">❤️</span>
+                        <span>Мне нравится</span>
+                        <span class="profile-action-arrow">→</span>
+                    </button>
+                    <button class="profile-action-btn" onclick="navigateTo('upload')">
+                        <span class="profile-action-icon">📤</span>
+                        <span>Загрузить трек</span>
+                        <span class="profile-action-arrow">→</span>
+                    </button>
+                    <button class="profile-action-btn" onclick="toggleMyProjects()">
+                        <span class="profile-action-icon">📋</span>
+                        <span>Мои проекты</span>
+                        <span class="profile-action-arrow" id="projectsArrow">▼</span>
+                    </button>
+                </div>
+                <div id="myProjectsContainer" style="display:none;">
+                    <div class="profile-divider"></div>
+                    <div id="myTracksList" class="my-tracks-list"></div>
+                </div>
+                <div class="profile-divider"></div>
+                <div class="profile-footer">
+                    <p class="profile-footer-text">DB Sound v1.0</p>
+                </div>
+            </div>
+        `;
+        
+        await updateProfileAvatar(tgUser);
+        await loadMyTracks();
+        
+    } catch (e) {
+        console.error('❌ Ошибка загрузки профиля:', e);
+        container.innerHTML = `
+            <div class="profile-card">
+                <div class="profile-avatar" id="profileAvatar">👤</div>
+                <div class="profile-name">${escapeHTML(tgUser.first_name || 'Пользователь')}</div>
+                <div class="profile-username">${tgUser.username ? '@' + escapeHTML(tgUser.username) : ''}</div>
+                <div class="profile-id">Telegram ID: ${tgUser.id || '—'}</div>
+                <div class="profile-divider"></div>
+                <p style="color: var(--muted); text-align: center;">❌ Ошибка загрузки данных</p>
+            </div>
+        `;
+        await updateProfileAvatar(tgUser);
+    }
+}
+
+// ============================================================
+// ТОГГЛ ПРОЕКТОВ ДЛЯ АРТИСТА
+// ============================================================
+
+function toggleMyProjects() {
+    const container = document.getElementById('myProjectsContainer');
+    const arrow = document.getElementById('projectsArrow');
+    
+    if (!container) return;
+    
+    if (container.style.display === 'none') {
+        container.style.display = 'block';
+        if (arrow) arrow.textContent = '▲';
+    } else {
+        container.style.display = 'none';
+        if (arrow) arrow.textContent = '▼';
+    }
+}
+
+// ============================================================
+// ЗАГРУЗКА ПРОЕКТОВ АРТИСТА
 // ============================================================
 
 async function loadMyTracks() {
     const container = document.getElementById('myTracksList');
-    const countEl = document.getElementById('myTracksCount');
-    const statTracks = document.getElementById('statTracks');
-    const statPlays = document.getElementById('statPlays');
+    if (!container) return;
     
-    if (!container || !tgUserId) return;
+    // Проверяем, является ли пользователь артистом
+    const isArtist = currentUserPermissions?.can_upload === true;
+    if (!isArtist) {
+        if (container) container.innerHTML = '';
+        return;
+    }
+    
+    if (!tgUserId) return;
     
     try {
         console.log('📥 Загрузка моих проектов...');
@@ -116,17 +302,6 @@ async function loadMyTracks() {
             .order('created_at', { ascending: false });
         
         if (error) throw error;
-        
-        console.log('✅ Загружено проектов:', data?.length || 0);
-        
-        let totalPlays = 0;
-        if (data && data.length > 0) {
-            totalPlays = data.reduce((sum, track) => sum + (track.plays || 0), 0);
-        }
-        
-        if (countEl) countEl.textContent = data?.length || 0;
-        if (statTracks) statTracks.textContent = data?.length || 0;
-        if (statPlays) statPlays.textContent = totalPlays;
         
         if (!data || data.length === 0) {
             container.innerHTML = `
@@ -213,31 +388,6 @@ async function loadMyTracks() {
 }
 
 // ============================================================
-// ОБНОВЛЕНИЕ UI С АВАТАРОМ
-// ============================================================
-
-async function updateProfileAvatar(user) {
-    if (!user || !user.id) return;
-    
-    const avatarEl = document.getElementById('profileAvatar');
-    if (!avatarEl) return;
-    
-    const avatarUrl = await getUserAvatar(user.id);
-    if (avatarUrl) {
-        avatarEl.innerHTML = `<img src="${avatarUrl}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">`;
-    } else {
-        const firstName = user.first_name || '';
-        const lastName = user.last_name || '';
-        const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase() || '👤';
-        avatarEl.textContent = initials;
-        avatarEl.style.fontSize = '32px';
-        avatarEl.style.display = 'flex';
-        avatarEl.style.alignItems = 'center';
-        avatarEl.style.justifyContent = 'center';
-    }
-}
-
-// ============================================================
 // УДАЛЕНИЕ ТРЕКА
 // ============================================================
 
@@ -246,9 +396,6 @@ async function deleteTrack(track) {
     
     try {
         console.log('🗑️ Удаление трека:', track.id);
-        console.log('👤 Текущий пользователь:', tgUserId);
-        console.log('👤 Владелец трека:', track.owner_id);
-        console.log('👑 Админ:', currentUserPermissions.is_admin);
         
         const isOwner = track.owner_id === tgUserId;
         const isAdmin = currentUserPermissions.is_admin === true;
@@ -335,7 +482,263 @@ async function loadArtistsForEditFeats() {
 }
 
 // ============================================================
-// СТИЛИ ДЛЯ КНОПОК УДАЛЕНИЯ ФАЙЛОВ (добавим в конец файла)
+// СТИЛИ ДЛЯ ПРОФИЛЯ
+// ============================================================
+
+const profileStyles = document.createElement('style');
+profileStyles.textContent = `
+    .profile-card {
+        max-width: 400px;
+        margin: 0 auto 32px;
+        background: var(--card);
+        border-radius: 16px;
+        padding: 32px 24px;
+        text-align: center;
+    }
+    
+    .profile-avatar-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+    
+    .profile-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: var(--card-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        font-size: 36px;
+        border: 2px solid var(--border);
+        overflow: hidden;
+    }
+    
+    .profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .profile-name {
+        font-size: 22px;
+        font-weight: 700;
+        color: #fff;
+        margin: 0;
+    }
+    
+    .profile-username {
+        font-size: 15px;
+        color: var(--muted);
+        margin-top: 2px;
+    }
+    
+    .profile-id {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 4px;
+        opacity: 0.6;
+    }
+    
+    .profile-role {
+        font-size: 13px;
+        color: var(--accent);
+        margin-top: 8px;
+        font-weight: 500;
+    }
+    
+    .profile-stats {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+    }
+    
+    .profile-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .profile-stat-number {
+        font-size: 24px;
+        font-weight: 700;
+        color: #fff;
+    }
+    
+    .profile-stat-label {
+        font-size: 13px;
+        color: var(--muted);
+    }
+    
+    .profile-divider {
+        height: 1px;
+        background: var(--border);
+        margin: 16px 0;
+    }
+    
+    .profile-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .profile-action-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: var(--card-light);
+        border: none;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 15px;
+        cursor: pointer;
+        transition: background 0.2s;
+        width: 100%;
+        text-align: left;
+    }
+    
+    .profile-action-btn:hover {
+        background: var(--card-hover);
+    }
+    
+    .profile-action-icon {
+        font-size: 20px;
+        width: 28px;
+        text-align: center;
+    }
+    
+    .profile-action-arrow {
+        margin-left: auto;
+        color: var(--muted);
+    }
+    
+    .profile-footer {
+        text-align: center;
+        padding: 4px 0 0 0;
+    }
+    
+    .profile-footer-text {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 0;
+    }
+    
+    .my-tracks-list {
+        margin-top: 8px;
+    }
+    
+    .my-track-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        background: var(--card-light);
+        border-radius: 12px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .my-track-item:hover {
+        background: var(--card-hover);
+    }
+    
+    .my-track-cover {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+    
+    .my-track-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .my-track-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .my-track-artist {
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .my-track-plays {
+        font-size: 11px;
+        color: var(--muted);
+    }
+    
+    .my-track-actions {
+        display: flex;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+    
+    .my-track-btn {
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 8px;
+        background: var(--bg);
+        color: #fff;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .my-track-btn:hover {
+        background: var(--card-hover);
+    }
+    
+    .my-track-btn-play {
+        background: #ffeb3b;
+        color: #000;
+    }
+    
+    .my-track-btn-play:hover {
+        background: #f5d100;
+    }
+    
+    .my-track-btn-edit {
+        color: #ffeb3b;
+    }
+    
+    .my-track-btn-delete {
+        color: #ff4444;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 32px 16px;
+        color: var(--muted);
+    }
+    
+    .empty-state p {
+        margin: 4px 0;
+    }
+`;
+document.head.appendChild(profileStyles);
+
+// ============================================================
+// СТИЛИ ДЛЯ КНОПОК УДАЛЕНИЯ ФАЙЛОВ (ДЛЯ РЕДАКТИРОВАНИЯ)
 // ============================================================
 
 const deleteFileStyles = document.createElement('style');
